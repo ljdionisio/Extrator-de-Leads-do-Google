@@ -1,0 +1,22 @@
+{
+  "name": "extrator-leads-digital-prime",
+  "version": "1.0.0",
+  "description": "Robô Extrator de Leads Google Maps da Digital Prime, independente e local.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "lead",
+    "scraper",
+    "google-maps"
+  ],
+  "author": "Digital Prime",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.100.1",
+    "dotenv": "^17.3.1",
+    "playwright": "^1.58.2"
+  }
+}
