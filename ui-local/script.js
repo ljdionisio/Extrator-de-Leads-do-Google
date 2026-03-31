@@ -4,7 +4,7 @@ window.updateStatusMsg = function (msg) {
     document.getElementById('sys-status').innerText = "> " + msg;
 };
 
-async function iniciarCaptacao() {
+async function iniciarCaptacao(triggerType = 'manual') {
     const niche = document.getElementById('i-niche').value;
     const city = document.getElementById('i-city').value;
 
@@ -23,8 +23,9 @@ async function iniciarCaptacao() {
     document.getElementById('lead-list').innerHTML = '';
 
     // Ativa o gatilho da função Expose do Node.js
-    window.updateStatusMsg("Conectando ao navegador escravo e gerando variações semânticas de busca...");
-    await window.startEngine(niche, city);
+    if (window.logEvent) window.logEvent('START', `Iniciando extração ${triggerType.toUpperCase()}: ${niche} em ${city}`);
+    window.updateStatusMsg(`Conectando ao navegador escravo [Trigger: ${triggerType.toUpperCase()}]...`);
+    await window.startEngine(niche, city, triggerType);
 
     // Quando a função Promise retornar finalizada, reseta os botões
     document.getElementById('btn-stop').style.display = 'none';
@@ -46,6 +47,7 @@ window.clearLeads = async function () {
         if (window.clearLocalStore) {
             await window.clearLocalStore();
         }
+        if (window.logEvent) window.logEvent('WARN', 'Sessão limpa pelo usuário. Histórico foi mantido.');
         window.updateStatusMsg("Captações limpas com sucesso.");
     }
 };
@@ -116,6 +118,7 @@ window.exportCSV = function () {
     link.href = URL.createObjectURL(blob);
     link.download = 'extracao_prime_forense.csv';
     link.click();
+    if (window.logEvent) window.logEvent('SYS', `Exportou relatório CSV de ${window.leads.length} leads.`);
 };
 
 window.renderLeadRow = function (l, tbody) {
@@ -232,6 +235,7 @@ window.exportPDF = async function () {
     try {
         const filePath = await window.exportToPDF(window.leads, niche, city);
         document.getElementById('sys-status').innerText = "> ✅ PDF Gerado com sucesso em: " + filePath;
+        if (window.logEvent) window.logEvent('SYS', `Exportou PDF com sucesso.`);
     } catch (e) {
         console.error(e);
         document.getElementById('sys-status').innerText = "> ❌ Erro ao gerar PDF.";
@@ -249,7 +253,36 @@ window.initLocalLeads = async function () {
     }
 };
 
-window.addEventListener('load', () => { setTimeout(() => window.initLocalLeads(), 1000); });
+window.addEventListener('load', () => {
+    setTimeout(() => window.initLocalLeads(), 1000);
+    setInterval(() => window.fetchObservability(), 3000);
+});
+
+window.fetchObservability = async function () {
+    if (window.getRunLogs && window.getEventsLog) {
+        const runs = await window.getRunLogs();
+        if (runs && runs.length > 0) {
+            const last = runs[runs.length - 1];
+            document.getElementById('obs-last-run').innerHTML = `
+                <span id="obs-lr-target" style="color:#f8fafc;"><strong>Alvo:</strong> ${last.niche} em ${last.city}</span><br>
+                Status: <strong id="obs-lr-status" style="color:${last.status_final === 'OK' ? '#10b981' : '#ef4444'}">${last.status_final}</strong><br>
+                Duração: <span id="obs-lr-duration" style="color:#f8fafc;">${last.duration_ms ? (last.duration_ms / 1000).toFixed(1) + 's' : 'Rodando...'}</span><br>
+                Retorno: <strong id="obs-lr-novos" style="color:#10b981;">Novos: ${last.total_novos || 0}</strong> | Dups: <span id="obs-lr-dups">${last.total_duplicados || 0}</span> | Err: <span style="color:#ef4444">${last.total_erros || 0}</span>
+            `;
+        }
+
+        const events = await window.getEventsLog();
+        const evBox = document.getElementById('obs-events');
+        if (events && events.length > 0) {
+            evBox.innerHTML = events.map(e => `
+                <div style="border-left: 2px solid ${e.type === 'ERROR' ? '#ef4444' : e.type === 'WARN' ? '#f59e0b' : '#3b82f6'}; padding-left: 6px;">
+                    <span style="color:#64748b;">${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span> 
+                    <strong style="color:#e2e8f0;">[${e.type}]</strong> ${e.message}
+                </div>
+            `).join('');
+        }
+    }
+};
 
 // ==========================
 // Cron / Agendamento UI
@@ -276,14 +309,19 @@ window.toggleCron = function () {
         document.getElementById('i-cron-min').disabled = true;
 
         window.updateStatusMsg(`⏱️ Automação ativada! Iniciando primeira corrida agora, a próxima será em ${mins} minutos.`);
+        if (window.logEvent) window.logEvent('CRON', `Temporizador agendado para ciclos de ${mins} minutos.`);
 
         if (document.getElementById('btn-start').style.display !== 'none') {
-            iniciarCaptacao();
+            iniciarCaptacao('cron');
+        } else {
+            if (window.logEvent) window.logEvent('WARN', 'Bloqueio na ignição: Cron tentou rodar com captação já ativa.');
         }
 
         window.cronTimer = setInterval(() => {
             if (document.getElementById('btn-start').style.display !== 'none') {
-                iniciarCaptacao();
+                iniciarCaptacao('cron');
+            } else {
+                if (window.logEvent) window.logEvent('WARN', 'Bloqueio de colisão: Captação saltada porque motor já estava ocupado.');
             }
         }, mins * 60 * 1000);
     }

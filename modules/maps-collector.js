@@ -8,7 +8,7 @@ const crypto = require('crypto');
 // Utilitário para pausar a execução
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-async function runMapsCollector(niche, city, browser, dashPage, supabase, getRobotStopped) {
+async function runMapsCollector(niche, city, browser, dashPage, supabase, getRobotStopped, runData = null) {
     const baseNiche = niche.trim();
     const baseCity = city.trim();
 
@@ -21,6 +21,7 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
 
     const globHrefs = new Set();
     let totalCount = 0;
+    let metrics = { total_captados: 0, total_novos: 0, total_duplicados: 0, total_erros: 0, total_timeouts: 0 };
 
     for (const variant of searchVariants) {
         if (getRobotStopped()) break;
@@ -177,6 +178,10 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                     const { saveLead } = require('./local-store.js');
                     const wasSaved = saveLead(fullLeadObj);
 
+                    metrics.total_captados++;
+                    if (wasSaved) metrics.total_novos++;
+                    else metrics.total_duplicados++;
+
                     if (wasSaved) {
                         // Exibe UI Imediatamente só se for lead original ou deduplicado aceito
                         await dashPage.evaluate((l) => {
@@ -185,6 +190,7 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                     }
 
                 } catch (err) {
+                    metrics.total_erros++;
                     console.log(`[${i + 1}] Falhou extração: ${err.message}`);
                 }
             }
@@ -206,6 +212,16 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
 
     if (!getRobotStopped()) {
         await dashPage.evaluate(() => { window.updateStatusMsg("✅ TODAS AS VARIAÇÕES CONCLUÍDAS!"); });
+    }
+
+    if (runData) {
+        runData.finished_at = new Date().toISOString();
+        runData.duration_ms = new Date(runData.finished_at) - new Date(runData.started_at);
+        runData.status_final = getRobotStopped() ? 'PAUSADO/PARCIAL' : 'OK';
+        Object.assign(runData, metrics);
+
+        const { saveRunLog } = require('./local-store.js');
+        saveRunLog(runData);
     }
 }
 

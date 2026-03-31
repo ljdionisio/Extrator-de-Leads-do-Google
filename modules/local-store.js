@@ -5,6 +5,8 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 
 const HIST_FILE = path.join(DATA_DIR, 'history_snapshots.json');
+const RUNS_LOG_FILE = path.join(DATA_DIR, 'runs_log.json');
+const EVENTS_LOG_FILE = path.join(DATA_DIR, 'events_log.json');
 
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -15,6 +17,12 @@ if (!fs.existsSync(LEADS_FILE)) {
 }
 if (!fs.existsSync(HIST_FILE)) {
     fs.writeFileSync(HIST_FILE, JSON.stringify([]), 'utf8');
+}
+if (!fs.existsSync(RUNS_LOG_FILE)) {
+    fs.writeFileSync(RUNS_LOG_FILE, JSON.stringify([]), 'utf8');
+}
+if (!fs.existsSync(EVENTS_LOG_FILE)) {
+    fs.writeFileSync(EVENTS_LOG_FILE, JSON.stringify([]), 'utf8');
 }
 
 function loadLeads() {
@@ -70,4 +78,38 @@ function clearLeadsFile() {
     fs.writeFileSync(LEADS_FILE, JSON.stringify([]), 'utf8');
 }
 
-module.exports = { saveLead, loadLeads, loadHistory, clearLeadsFile };
+function loadRuns() {
+    try {
+        return JSON.parse(fs.readFileSync(RUNS_LOG_FILE, 'utf8'));
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveRunLog(runObj) {
+    const runs = loadRuns();
+    const idx = runs.findIndex(r => r.run_id === runObj.run_id);
+    if (idx !== -1) {
+        runs[idx] = { ...runs[idx], ...runObj };
+    } else {
+        runs.push(runObj);
+    }
+    fs.writeFileSync(RUNS_LOG_FILE, JSON.stringify(runs, null, 2), 'utf8');
+}
+
+function loadEventsLog() {
+    try {
+        return JSON.parse(fs.readFileSync(EVENTS_LOG_FILE, 'utf8'));
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveEventLog(type, msg) {
+    const events = loadEventsLog();
+    events.unshift({ timestamp: new Date().toISOString(), type, message: msg });
+    if (events.length > 50) events.length = 50; // Limitar painel a 50 logs recentes
+    fs.writeFileSync(EVENTS_LOG_FILE, JSON.stringify(events, null, 2), 'utf8');
+}
+
+module.exports = { saveLead, loadLeads, loadHistory, clearLeadsFile, saveRunLog, loadRuns, saveEventLog, loadEventsLog };

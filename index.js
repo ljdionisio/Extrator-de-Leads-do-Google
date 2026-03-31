@@ -43,6 +43,21 @@ async function run() {
         clearLeadsFile();
     });
 
+    await dashContext.exposeFunction('logEvent', (type, msg) => {
+        const { saveEventLog } = require('./modules/local-store.js');
+        saveEventLog(type, msg);
+    });
+
+    await dashContext.exposeFunction('getRunLogs', () => {
+        const { loadRuns } = require('./modules/local-store.js');
+        return loadRuns();
+    });
+
+    await dashContext.exposeFunction('getEventsLog', () => {
+        const { loadEventsLog } = require('./modules/local-store.js');
+        return loadEventsLog();
+    });
+
     await dashContext.exposeFunction('savePipelineUpdate', (leadId, newStatus) => {
         const fs = require('fs');
         const path = require('path');
@@ -58,9 +73,29 @@ async function run() {
         } catch (e) { }
     });
 
-    await dashContext.exposeFunction('startEngine', async (niche, city) => {
+    await dashContext.exposeFunction('startEngine', async (niche, city, triggerType = 'manual') => {
         globalIsStopped = false;
-        await runMapsCollector(niche, city, browser, dashPage, supabase, () => globalIsStopped);
+
+        const run_id = require('crypto').randomUUID();
+        const started_at = new Date().toISOString();
+
+        const runData = {
+            run_id,
+            trigger_type: triggerType,
+            started_at,
+            niche,
+            city,
+            status_final: 'RUNNING'
+        };
+
+        const { saveRunLog } = require('./modules/local-store.js');
+        saveRunLog(runData);
+
+        try {
+            await runMapsCollector(niche, city, browser, dashPage, supabase, () => globalIsStopped, runData);
+        } catch (e) {
+            console.error('Fatal API crash:', e);
+        }
     });
 
     // ========================================================

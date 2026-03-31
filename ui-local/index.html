@@ -103,6 +103,18 @@
             </div>
             <div id="cron-status" style="font-size:11px; color:#10b981; margin-top:5px; display:none;">Ativo: Rodando a
                 cada <span id="lbl-cron-time"></span>m</div>
+
+            <h2 style="color: #cbd5e1; font-size: 14px; margin-bottom: 15px; margin-top:30px;">📊 Última Execução</h2>
+            <div id="obs-last-run"
+                style="background: #0f172a; padding: 10px; border-radius: 6px; font-size: 11px; color: #94a3b8; line-height: 1.4;">
+                <em>Nenhuma execução resgatada...</em>
+            </div>
+
+            <h2 style="color: #cbd5e1; font-size: 14px; margin-bottom: 10px; margin-top:30px;">📜 Logs Operacionais</h2>
+            <div id="obs-events"
+                style="background: #0f172a; padding: 10px; border-radius: 6px; font-size: 10px; color: #94a3b8; height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-family: monospace;">
+                <!-- Logs injetados aqui -->
+            </div>
         </div>
 
         <!-- Content Area -->
