@@ -1,62 +1,44 @@
 # 🚀 Manual Operacional - Lead King
 > Documentação exclusiva para o time comercial (SDR/BDR) da Digital Prime.
+> **Versão Oficial:** v2.2.0 — Lead King / Baseline Operacional Digital Prime
+> **Status de Homologação:** GO LOCAL ✅
 
 ---
 
 ## 1. O que é o Lead King?
-O Lead King é o motor de Forense de Empresas e Captação de Leads B2B da Digital Prime. Ele usa o navegador invisível da máquina para varrer milhares de alvos, extrair os dados e descobrir os **problemas (dores)** que as empresas têm no Google (sem site, sem instagram, avaliação ruim).
+O Lead King é o motor autônomo de Forense de Empresas e Captação B2B da Digital Prime. Ele utiliza do navegador do computador hospedeiro para varrer alvos no Google Maps, extraindo não apenas os dados de contato, mas as "dores" da presença digital (falta de sites, avaliações ruins, ausência de redes sociais).
 
-O objetivo principal da ferramenta **NÃO** é achar empresas ricas, mas achar empresas **invisíveis digitalmente** ou com reputação fraca, pois essas são as oportunidades onde a Digital Prime atua melhor.
-
----
-
-## 2. Como Operar (Passo a Passo Básico)
-
-1. **Abra o sistema:** Inicie a janela do robô (via atalho ou comando na pasta raiz).
-2. **Defina o Alvo:**
-   - Digite o **Nicho** (ex: *Borracharia, Dermatologistas*)
-   - Digite a **Cidade** (ex: *Sorocaba, Curitiba*)
-3. **Pressione "INICIAR CAPTAÇÃO":**
-   - O botão ficará vermelho ("Pausar Motor").
-   - Acompanhe o **Console Live** adicionando empresas na tabela na sua frente.
-4. **Após o término (ou clocando em Pausar):**
-   - O robô vai gerar *automaticamente* uma planilha da rodada e salvar na sua Área de Trabalho.
-   - Use os menus suspensos caso precise aprovar ou negar oportunidades pelo **CRM Offline** da tela ("Novo", "Fechado", "Perdido").
+**O motor pontua e prioriza** prospectos baseados na gravidade de suas deficiências (empresas com piores presenças ficam mais "Quentes").
 
 ---
 
-## 3. O que são as pontuações (Score e Prioridade)?
-Cada lead revelado passa por um Raio-X. O robô vai classificar o lead como **QUENTE**, **MORNO** ou **FRIO** e exibir sua pontuação.
-
-* **Isso é muito importante:** A pontuação **alta** reflete que a empresa tem MUITO a melhorar. Ou seja, ela é "Quente" porque possui *falhas na presença digital* e você terá argumentos fortes para abordá-la.
-* Por exemplo: Empresas ocultas sem telefone e sem foto, ou com avaliações 2.5 estrelas ganham +25 pontos na inteligência da máquina.
-
----
-
-## 4. O Sistema de Resgates (⚠️ Repescado)
-Se você limpa a tela para outra execução ou amanhã pesquisa na mesma cidade, o robô bloqueia repetidos (para você não falar com a mesma pessoa à toa).
-
-Se o robô encontrar um lead velho numa pesquisa de hoje que tenha a mesma identidade passada, mas houver sentido em abordá-lo de novo, ele adiciona na tela com a flag laranja **⚠️ REPESCADO**. Isso significa que ele já está nos relatórios de ontem, mas voltou pelo radar hoje. 
+## 2. Instruções de Operação Diária
+1. **Inicialização:** Em um terminal na pasta raiz, execute `npm start`. A interface de controle (Master Control Panel) se abrirá.
+2. **Definição do Alvo:** Preencha o **Nicho** (ex: *Advogados*) e a **Cidade** (ex: *São Paulo*).
+3. **Extração Manual:** Pressione "INICIAR CAPTAÇÃO". O motor abrirá o mapa e os leads aparecerão gradativamante na tabela `Console Live`.
+4. **Limpeza da Tela:** Pressione "Limpar Captações" para isolar um novo lote. Os resultados antigos já estarão salvos no arquivo seguro de Backup Automático do sistema.
+5. **Gestão:** Use o seletor da tabela para classificar sua tratativa ("Novo", "Fechado", "Perdido"). A persistência no disco é imediata e irreversível na sessão.
+6. **Exportação:** Utilize os botões "Exportar .CSV" ou "Exportar PDF" para despachar o lote atual. Os relatórios cairão pontualmente na pasta `Desktop/CRM Extrator Leads`.
 
 ---
 
-## 5. Modo de Piloto Automático (CRON)
-Lá embaixo na tela, há um agendador *"Automação (Cron)"*:
-1. Digite a quantidade de minutos (ex: `60`).
-2. Clique em **Agendar**.
-3. A cada hora, a plataforma executará varreduras silenciosas pelos nichos preenchidos na barra lateral e arquivará no disco, **enquanto seu navegador fica aberto.** 
+## 3. O Sistema de Resgates (⚠️ Repescado)
+Caso o robô extraia uma empresa que já estava no Histórico, ele irá injetá-la na sessão atual caso pertença ao seu novo filtro, mas acenderá um selo laranja **⚠️ REPESCADO**. Isso avisa o operador de que a empresa já fora mapeada no passado e merece cautela para não causar colisão de abordagem na Digital Prime.
 
 ---
 
-## 6. Exportação e Envio pro CRM Principal
+## 4. Instruções de Homologação Comercial
+1. **Definição de Responsáveis:** Selecionar um BDR designado para receber os relatórios do Desktop e carregar no CRM primário (RD Station/Pipedrive).
+2. **Teste de Pitch:** Validar a utilidade da "Sugestão de Abordagem Curta" (Forensic Pain Points) gerada nas conversas de prospecção fria.
+3. **Avaliação do Scoring:** Conferir se as pontuações mais altas (100+ pts) de fato correspondem a clientes mais propensos a comprarem serviços de visibilidade digital no mundo real.
 
-O robô salva tudo sozinho na sua Desktop na pasta principal **"CRM Extrator Leads"**.
-*(Lá você verá suas tabelas Excel `.csv` e livretos `.pdf`).*
+---
 
-**Mandar pro Pipedrive, RD Station ou Make:**
-1. Na barra lateral: Role para baixo, em **Webhook**.
-2. Cole o link especial do Make.com ou RD Station que seu Gestor passou (`http...`).
-3. Clique em **Salvar**.
-4. No botão do topo da tabela (verde: **☁️ Enviar p/ Webhook**), ele transmitirá toda a grade que você está vendo agora diretamente pro CRM da empresa para facilitar suas tarefas, sem precisar baixar o Excel e importar se não quiser.
+## 5. Limitações e Riscos Residuais Oficiais
 
-> Bom trabalho e boas Vendas! Caso algo falhe, contate seu Líder Técnico ou Developer para verificar a conexão do NodeJS com o Playwright!
+### Limitações Conhecidas do Cron Local
+O módulo **Automação (Cron)** opera no lado do cliente.
+* Se a janela/aba ativa sofrer *Sleep* severo pelo Windows ou por inatividade agressiva, a agenda atrasará indefinidamente, rompendo a sincronia do scraping de hora em hora. Recomenda-se um monitor/VPS ligado dedicado à janela.
+
+### Limitação Estrutural do Scraper (DOM do Google Maps)
+* **Sensores de Classes Fragilizadas:** O extrator depende de *seletores de CSS específicos* (como `a.hfpxzc` estruturado pelo React do Google). Uma alteração não-anunciada e massiva da UI pelo Google cegará as âncoras, resultando em 0 captações e exigindo intervenção rápida do time de engenharia técnica.
