@@ -38,17 +38,43 @@ async function pausarCaptacao() {
     document.getElementById('btn-stop').style.background = "#eab308";
 }
 
+window.isClearing = false;
+
+window.renderEmptyState = function (tbody) {
+    if (!tbody) tbody = document.getElementById('lead-list');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 30px; color: #94a3b8; font-style: italic;">Nenhum lead disponível nesta sessão. Inicie uma nova busca ou aguarde.</td></tr>';
+};
+
 window.clearLeads = async function () {
+    if (window.isClearing) return console.warn("Limpeza em andamento, lock ativo.");
+
     const confirmed = confirm("Tem certeza que deseja apagar todas as captações salvas? Isso não pode ser desfeito.");
     if (confirmed) {
-        if (window.pausarCaptacao) await window.pausarCaptacao();
+        window.isClearing = true;
+        const btnClear = document.getElementById('btn-clear');
+        if (btnClear) btnClear.disabled = true;
+
+        if (window.pausarCaptacao && document.getElementById('btn-stop').style.display !== 'none') {
+            await window.pausarCaptacao();
+        }
+
         window.leads = [];
-        document.getElementById('lead-list').innerHTML = '';
+
         if (window.clearLocalStore) {
             await window.clearLocalStore();
         }
+
+        window.renderEmptyState();
+
+        document.querySelectorAll('select[id^=f-]').forEach(e => e.value = 'all');
+        const iFilter = document.getElementById('i-filter');
+        if (iFilter) iFilter.value = 'all';
+
         if (window.logEvent) window.logEvent('WARN', 'Sessão limpa pelo usuário. Histórico foi mantido.');
         window.updateStatusMsg("Captações limpas com sucesso.");
+
+        if (btnClear) btnClear.disabled = false;
+        window.isClearing = false;
     }
 };
 
@@ -90,7 +116,12 @@ window.applyFilters = function () {
 
     const tbody = document.getElementById('lead-list');
     tbody.innerHTML = '';
-    filtered.forEach(l => window.renderLeadRow(l, tbody));
+
+    if (!filtered || filtered.length === 0) {
+        if (window.renderEmptyState) window.renderEmptyState(tbody);
+    } else {
+        filtered.forEach(l => window.renderLeadRow(l, tbody));
+    }
 };
 
 window.updatePipelineStatus = async function (leadId, newStatus) {
@@ -104,21 +135,26 @@ window.updatePipelineStatus = async function (leadId, newStatus) {
     }
 };
 
-window.exportCSV = function () {
+window.exportCSV = async function () {
     if (window.leads.length === 0) return alert("Nenhum lead extraído ainda.");
-    let csv = 'Score,Prioridade,Rating,Reviews,Empresa,Endereco,Telefone,Site,Instagram,Facebook,WhatsApp,Pesquisa,MapsURL,OutrosLinks,StatusPipeline,ArgumentoComercial,UltimoPostGMB\n';
-    window.leads.forEach(l => {
-        let lName = l.name ? l.name.replace(/"/g, '""') : '';
-        let lAddr = l.address ? l.address.replace(/"/g, '""') : '';
-        let arg = l.argumento_comercial ? l.argumento_comercial.replace(/"/g, '""') : '';
-        csv += (l.score || 0) + ',' + (l.prioridade_comercial || l.priority || '') + ',' + (l.rating || 0) + ',' + (l.reviews || 0) + ',"' + lName + '","' + lAddr + '","' + (l.phone || '') + '","' + (l.website || '') + '","' + (l.instagram || '') + '","' + (l.facebook || '') + '","' + (l.whatsapp_url || '') + '","' + (l.source_search_url || '') + '","' + (l.google_maps_url || '') + '","' + ((l.other_public_links || []).join(';')) + '","' + (l.status_pipeline || 'Novo') + '","' + arg + '","' + (l.last_post || '') + '"\n';
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'extracao_prime_forense.csv';
-    link.click();
-    if (window.logEvent) window.logEvent('SYS', `Exportou relatório CSV de ${window.leads.length} leads.`);
+
+    document.getElementById('sys-status').innerText = "> Exportando CSV, aguarde...";
+
+    const niche = document.getElementById('i-niche') ? document.getElementById('i-niche').value : 'Nicho';
+    const city = document.getElementById('i-city') ? document.getElementById('i-city').value : 'Cidade';
+
+    if (window.exportToCSV) {
+        try {
+            const filePath = await window.exportToCSV(window.leads, niche, city);
+            document.getElementById('sys-status').innerText = "> ✅ CSV Gerado com sucesso em: " + filePath;
+            if (window.logEvent) window.logEvent('SYS', `Exportou relatório CSV.`);
+        } catch (e) {
+            console.error(e);
+            document.getElementById('sys-status').innerText = "> ❌ Erro ao exportar CSV.";
+        }
+    } else {
+        alert("Função de exportar nativa não encontrada.");
+    }
 };
 
 window.renderLeadRow = function (l, tbody) {
@@ -152,17 +188,24 @@ window.renderLeadRow = function (l, tbody) {
 }
 
 window.addLead = function (lead) {
+    if (window.isClearing) return;
+    if (!lead || !lead.name) return;
     if (window.leads.some(l => l.name === lead.name)) return;
+
     window.leads.push(lead);
-    // Ordenar: Piores primeiro! (0 avaliações ou menores stars no topo)
+
     window.leads.sort((a, b) => {
         let sA = a.score || 0; let sB = b.score || 0;
         return sB - sA;
     });
 
-    const tbody = document.getElementById('lead-list');
-    tbody.innerHTML = '';
-    window.leads.forEach((l) => window.renderLeadRow(l, tbody));
+    if (window.applyFilters) {
+        window.applyFilters();
+    } else {
+        const tbody = document.getElementById('lead-list');
+        tbody.innerHTML = '';
+        window.leads.forEach((l) => window.renderLeadRow(l, tbody));
+    }
 };
 
 window.showDetails = async function (idx) {

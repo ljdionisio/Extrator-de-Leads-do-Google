@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
+const { getDesktopExportDir } = require('./path-helper.js');
 
 async function generatePDF(leads, niche, city) {
     const dateStr = new Date().toLocaleString('pt-BR');
@@ -83,7 +84,7 @@ async function generatePDF(leads, niche, city) {
     await page.setContent(html, { waitUntil: 'load' });
 
     const safeName = `Relatorio_${niche}_${city}_${Date.now()}`.replace(/[^a-z0-9_]/gi, '_').toLowerCase() + '.pdf';
-    const filePath = path.join(process.cwd(), safeName);
+    const filePath = path.join(getDesktopExportDir(), safeName);
 
     await page.pdf({
         path: filePath,

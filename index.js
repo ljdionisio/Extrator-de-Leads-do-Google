@@ -38,6 +38,11 @@ async function run() {
         return await generatePDF(leads, niche, city);
     });
 
+    await dashContext.exposeFunction('exportToCSV', async (leads, niche, city) => {
+        const { generateCSV } = require('./modules/csv-exporter.js');
+        return await generateCSV(leads, niche, city);
+    });
+
     await dashContext.exposeFunction('clearLocalStore', () => {
         const { clearLeadsFile } = require('./modules/local-store.js');
         clearLeadsFile();
@@ -117,6 +122,30 @@ async function run() {
 
         try {
             await runMapsCollector(niche, city, browser, dashPage, supabase, () => globalIsStopped, runData);
+
+            // Bloco 3: Auto-Save ao fim da captação
+            try {
+                const { loadLeads } = require('./modules/local-store.js');
+                const finalLeads = loadLeads() || [];
+                if (finalLeads.length > 0) {
+                    const { generatePDF } = require('./modules/pdf-exporter.js');
+                    const { generateCSV } = require('./modules/csv-exporter.js');
+
+                    const savedPdf = await generatePDF(finalLeads, niche, city);
+                    const savedCsv = await generateCSV(finalLeads, niche, city);
+
+                    await dashPage.evaluate((args) => {
+                        if (window.logEvent) window.logEvent('SYS', `Auto-Save Concluído. Relatórios gerados na Área de Trabalho.`);
+                        window.updateStatusMsg(`✅ Busca Finalizada! Relatórios salvos: ${args.savedPdf}`);
+                    }, { savedPdf, savedCsv });
+                }
+            } catch (exportErr) {
+                console.error("Erro no auto-save (não bloqueante):", exportErr);
+                await dashPage.evaluate((args) => {
+                    if (window.logEvent) window.logEvent('ERROR', `Auto-Save falhou: ${args.exportErr}`);
+                }, { exportErr: exportErr.message });
+            }
+
         } catch (e) {
             console.error('Fatal API crash:', e);
         }
