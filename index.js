@@ -58,6 +58,30 @@ async function run() {
         return loadEventsLog();
     });
 
+    await dashContext.exposeFunction('getSettings', () => {
+        const { loadSettings } = require('./modules/local-store.js');
+        return loadSettings();
+    });
+
+    await dashContext.exposeFunction('saveSettings', (settings) => {
+        const { saveSettings } = require('./modules/local-store.js');
+        saveSettings(settings);
+    });
+
+    await dashContext.exposeFunction('dispatchToWebhook', async (webhookUrl, leadsBatch) => {
+        try {
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leads: leadsBatch, timestamp: new Date().toISOString() })
+            });
+            if (!response.ok) return { success: false, status: response.status, error: await response.text() };
+            return { success: true, status: response.status };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
     await dashContext.exposeFunction('savePipelineUpdate', (leadId, newStatus) => {
         const fs = require('fs');
         const path = require('path');

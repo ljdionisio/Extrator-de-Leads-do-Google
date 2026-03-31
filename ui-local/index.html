@@ -115,24 +115,40 @@
                 style="background: #0f172a; padding: 10px; border-radius: 6px; font-size: 10px; color: #94a3b8; height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-family: monospace;">
                 <!-- Logs injetados aqui -->
             </div>
+
+            <h2 style="color: #cbd5e1; font-size: 14px; margin-bottom: 10px; margin-top:30px;">🔗 Webhook (SaaS Export)
+            </h2>
+            <div style="display: flex; gap: 8px; margin-bottom: 30px; align-items: stretch;">
+                <div style="flex:1;">
+                    <input type="text" id="i-webhook-url" placeholder="https://hook.us1.make.com/..."
+                        style="width: 100%; border: 1px solid #334155; padding: 8px; border-radius: 6px; background: #0f172a; color:#fff; font-size:11px;">
+                </div>
+                <button onclick="saveWebhook()"
+                    style="background:#3b82f6; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Salvar</button>
+            </div>
         </div>
 
         <!-- Content Area -->
         <div class="content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div class="content-header"
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0;">
                 <h2 style="margin: 0; font-size: 18px; font-weight: 500;">Console Live</h2>
-                <button onclick="exportPDF()"
-                    style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;">📄
-                    Exportar PDF</button>
-                <button onclick="exportCSV()"
-                    style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer;">📥
-                    Exportar .CSV</button>
+                <div class="content-header-buttons">
+                    <button onclick="exportPDF()"
+                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;">📄
+                        Exportar PDF</button>
+                    <button onclick="exportCSV()"
+                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;">📥
+                        Exportar .CSV</button>
+                    <button onclick="syncWebhook()"
+                        style="background:#10b981; border: none; color:#fff; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:600;">☁️
+                        Enviar p/ Webhook</button>
+                </div>
             </div>
 
             <div id="sys-status">Aguardando coordenadas. Preencha o nicho e clique em Iniciar.</div>
 
-            <div
-                style="background: #1e293b; border-radius: 8px; border: 1px solid #334155; overflow: hidden; max-height: 700px; overflow-y: auto;">
+            <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>

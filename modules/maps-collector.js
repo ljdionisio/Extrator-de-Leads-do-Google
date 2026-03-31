@@ -142,7 +142,7 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                         score: scoreResult.score,
                         priority: scoreResult.priority,
                         reasons: scoreResult.reasons,
-                        draft_message: dfMsg,
+                        draft_message: messages.whatsapp_curta,
                         status: leadStatus,
                         warnings: wrn,
                         niche: niche.trim(),

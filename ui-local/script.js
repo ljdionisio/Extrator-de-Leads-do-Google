@@ -250,6 +250,62 @@ window.initLocalLeads = async function () {
             window.addLead(l);
         });
         document.getElementById('sys-status').innerText = "> ✅ Sessão recuperada: " + saved.length + " leads offline vivos.";
+        if (window.getSettings) {
+            const s = await window.getSettings();
+            if (s && s.webhookUrl) document.getElementById('i-webhook-url').value = s.webhookUrl;
+        }
+    }
+};
+
+window.saveWebhook = async function () {
+    const url = document.getElementById('i-webhook-url').value;
+    if (window.saveSettings) {
+        await window.saveSettings({ webhookUrl: url });
+        if (window.logEvent) window.logEvent('SYS', 'URL de Webhook atualizada com sucesso.');
+        window.updateStatusMsg("✅ Webhook Salvo!");
+    }
+};
+
+window.syncWebhook = async function () {
+    if (!window.leads || window.leads.length === 0) return alert("Nenhum lead para sincronizar.");
+    const url = document.getElementById('i-webhook-url').value;
+    if (!url || !url.startsWith("http")) return alert("Configure uma URL de Webhook válida primeiro.");
+
+    document.getElementById('sys-status').innerText = "> Sincronizando lotes via Webhook...";
+
+    // Safely structure payload to avoid circular JSON and huge unnecessary nested strings for Make.com
+    const safeLeads = window.leads.map(l => ({
+        id: l.lead_id_estavel,
+        score: l.score,
+        prioridade: l.prioridade_comercial || l.priority || "",
+        status_pipeline: l.status_pipeline,
+        empresa: l.name,
+        telefone: l.phone,
+        endereco: l.address,
+        website: l.website,
+        whatsapp_url: l.whatsapp_url,
+        instagram: l.instagram,
+        facebook: l.facebook,
+        google_maps_url: l.google_maps_url,
+        source_search_url: l.source_search_url,
+        avaliacao_google: l.rating,
+        total_avaliacoes: l.reviews,
+        mensagem_intro: l.mensagem_whatsapp_curta || "",
+        mensagem_consultiva: l.mensagem_whatsapp || "",
+        argumento_sdr: l.argumento_comercial || "",
+        concorrentes: l.concorrentes_referencia || "",
+        ultimo_post: l.last_post || ""
+    }));
+
+    if (window.dispatchToWebhook) {
+        const result = await window.dispatchToWebhook(url, safeLeads);
+        if (result.success) {
+            document.getElementById('sys-status').innerText = `> ✅ Sincronização Concluída! ${window.leads.length} leads enviados.`;
+            if (window.logEvent) window.logEvent('SYS', `Webhook: Lote de ${window.leads.length} leads sincronizado com sucesso.`);
+        } else {
+            document.getElementById('sys-status').innerText = "> ❌ Erro ao sincronizar: " + (result.error || result.status);
+            if (window.logEvent) window.logEvent('ERROR', `Webhook falhou (Status: ${result.status}). ${result.error}`);
+        }
     }
 };
 

@@ -7,6 +7,7 @@ const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 const HIST_FILE = path.join(DATA_DIR, 'history_snapshots.json');
 const RUNS_LOG_FILE = path.join(DATA_DIR, 'runs_log.json');
 const EVENTS_LOG_FILE = path.join(DATA_DIR, 'events_log.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -23,6 +24,9 @@ if (!fs.existsSync(RUNS_LOG_FILE)) {
 }
 if (!fs.existsSync(EVENTS_LOG_FILE)) {
     fs.writeFileSync(EVENTS_LOG_FILE, JSON.stringify([]), 'utf8');
+}
+if (!fs.existsSync(SETTINGS_FILE)) {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ webhookUrl: '' }), 'utf8');
 }
 
 function loadLeads() {
@@ -112,4 +116,18 @@ function saveEventLog(type, msg) {
     fs.writeFileSync(EVENTS_LOG_FILE, JSON.stringify(events, null, 2), 'utf8');
 }
 
-module.exports = { saveLead, loadLeads, loadHistory, clearLeadsFile, saveRunLog, loadRuns, saveEventLog, loadEventsLog };
+function loadSettings() {
+    try {
+        return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    } catch (e) {
+        return { webhookUrl: '' };
+    }
+}
+
+function saveSettings(settingsObj) {
+    const current = loadSettings();
+    const updated = { ...current, ...settingsObj };
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(updated, null, 2), 'utf8');
+}
+
+module.exports = { saveLead, loadLeads, loadHistory, clearLeadsFile, saveRunLog, loadRuns, saveEventLog, loadEventsLog, loadSettings, saveSettings };
