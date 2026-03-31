@@ -18,7 +18,19 @@ function calculateLeadScore(auditData) {
         motives.push("Sem Facebook");
     }
 
-    // Gestão de reputação GMB
+    // WhatsApp
+    if (auditData.whatsapp || (auditData.other_public_links && auditData.other_public_links.some(l => l.includes('wa.me') || l.includes('whatsapp.com')))) {
+        score += 10;
+        motives.push("Canal de Contato Rápido (WhatsApp)");
+    }
+
+    // Gestão de reputação GMB e Perfil Completo
+    const perfilIncompleto = !auditData.website && (!auditData.phone || auditData.rating === 0);
+    if (perfilIncompleto) {
+        score += 20;
+        motives.push("Perfil Google Incompleto (Oportunidade GMB)");
+    }
+
     if (auditData.rating === null || auditData.rating === 0) {
         score += 20;
         motives.push("Invisibilidade Digital (Nenhuma avaliação Google)");
@@ -28,6 +40,11 @@ function calculateLeadScore(auditData) {
     } else if (auditData.rating < 4.5) {
         score += 10;
         motives.push(`Nota Regular ${auditData.rating} (Pode melhorar)`);
+    }
+
+    if (auditData.reviews > 0 && auditData.reviews < 10) {
+        score += 15;
+        motives.push("Presença Digital Fraca (Poucas avaliações)");
     }
 
     // Avaliações Negativas Expostas (dor urgente pro cliente)
@@ -42,8 +59,13 @@ function calculateLeadScore(auditData) {
         motives.push("Google Meu Negócio abandonado (sem postagens recentes)");
     }
 
+    // Links públicos
+    if (!auditData.other_public_links || auditData.other_public_links.length === 0) {
+        score += 10;
+        motives.push("Sem links públicos suficientes");
+    }
+
     // Criterio de ouro: a gente OBRIGATORIAMENTE PERDE PONTOS SE NÃO TIVERMOS COMO LIGAR PARA ELE!
-    // (Pois é um lead comercial inútil se não tiver telefone)
     if (auditData.phone) {
         score += 10;
         motives.push("Canal de Contato Direto ✅");
@@ -53,11 +75,11 @@ function calculateLeadScore(auditData) {
     }
 
     // Set priority
-    let priority = 'baixa';
-    if (score >= 70) {
-        priority = 'alta';
-    } else if (score >= 40) {
-        priority = 'média';
+    let priority = 'frio';
+    if (score >= 80) {
+        priority = 'quente';
+    } else if (score >= 50) {
+        priority = 'morno';
     }
 
     return {

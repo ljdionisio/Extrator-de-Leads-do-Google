@@ -1,94 +1,161 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-  <meta charset="UTF-8">
-  <title>Motor Digital Prime - Master Control Panel</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <title>Motor Digital Prime - Master Control Panel</title>
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<div class="master-layout">
-    <!-- Sidebar Setup -->
-    <div class="sidebar">
-        <h1 class="header-title">Master Control</h1>
-        
-        <div class="form-group">
-            <label>Alvo / Nicho</label>
-            <input type="text" id="i-niche" placeholder="Ex: Dentista, Advogado...">
-        </div>
-        
-        <div class="form-group">
-            <label>Cidade / Localização</label>
-            <input type="text" id="i-city" placeholder="Ex: Campinas, São Paulo...">
+    <div class="master-layout">
+        <!-- Sidebar Setup -->
+        <div class="sidebar">
+            <h1 class="header-title">Master Control</h1>
+
+            <div class="form-group">
+                <label>Alvo / Nicho</label>
+                <input type="text" id="i-niche" placeholder="Ex: Dentista, Advogado...">
+            </div>
+
+            <div class="form-group">
+                <label>Cidade / Localização</label>
+                <input type="text" id="i-city" placeholder="Ex: Campinas, São Paulo...">
+            </div>
+
+            <hr style="border:0; border-top:1px solid #334155; margin: 20px 0;">
+
+            <!-- Ocultado IA e Serper - PIVOT GMB Forensics -->
+            <h2 style="color: #cbd5e1; font-size: 14px; margin-bottom: 20px; margin-top:20px;">🕵️ Filtros de Forense
+            </h2>
+            <div class="form-group">
+                <label>Filtrar por Avaliações</label>
+                <select id="i-filter" onchange="applyFilters()"
+                    style="width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+                    <option value="all">Ver Todos</option>
+                    <option value="0-3">Críticos (0 a 3.9 Estrelas)</option>
+                    <option value="4-4.9">Bons (4 a 4.9 Estrelas)</option>
+                    <option value="5">Perfeitos (5 Estrelas)</option>
+                </select>
+
+                <label>Pipeline CRM</label>
+                <select id="f-pipeline" onchange="applyFilters()"
+                    style="width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+                    <option value="all">Todos os Status</option>
+                    <option value="Novo">Novo</option>
+                    <option value="Analisado">Analisado</option>
+                    <option value="Abordado">Abordado</option>
+                    <option value="Respondeu">Respondeu</option>
+                    <option value="Proposta Enviada">Proposta Enviada</option>
+                    <option value="Fechado">Fechado</option>
+                    <option value="Perdido">Perdido</option>
+                </select>
+
+                <label>Temperatura</label>
+                <select id="f-temperatura" onchange="applyFilters()"
+                    style="width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+                    <option value="all">Todas</option>
+                    <option value="quente">Quente</option>
+                    <option value="morno">Morno</option>
+                    <option value="frio">Frio</option>
+                </select>
+
+                <label>Presença Digital</label>
+                <select id="f-site" onchange="applyFilters()"
+                    style="width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 5px;">
+                    <option value="all">Site (Todos)</option>
+                    <option value="yes">Com Site</option>
+                    <option value="no">Sem Site</option>
+                </select>
+                <select id="f-whats" onchange="applyFilters()"
+                    style="width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 5px;">
+                    <option value="all">WhatsApp (Todos)</option>
+                    <option value="yes">Com WhatsApp</option>
+                    <option value="no">Sem WhatsApp</option>
+                </select>
+                <select id="f-insta" onchange="applyFilters()"
+                    style="width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 5px;">
+                    <option value="all">Instagram (Todos)</option>
+                    <option value="yes">Com Instagram</option>
+                    <option value="no">Sem Instagram</option>
+                </select>
+                <button
+                    onclick="document.querySelectorAll('select[id^=f-]').forEach(e=>e.value='all'); document.getElementById('i-filter').value='all'; applyFilters();"
+                    style="width:100%; background:transparent; border:1px solid #475569; color:#cbd5e1; padding:8px; border-radius:4px; margin-top:10px; cursor:pointer;">Limpar
+                    Filtros</button>
+            </div>
+
+            <button id="btn-start" class="master-btn" onclick="iniciarCaptacao()">🚀 INICIAR CAPTAÇÃO</button>
+            <button id="btn-stop" class="master-btn stop-btn" onclick="pausarCaptacao()">🛑 PAUSAR MOTOR</button>
+            <button id="btn-clear" class="master-btn" onclick="clearLeads()"
+                style="background: #3f3f46; margin-top: 15px;">🗑️ LIMPAR CAPTAÇÕES</button>
+
+            <h2 style="color: #cbd5e1; font-size: 14px; margin-bottom: 15px; margin-top:30px;">⏱️ Automação (Cron)</h2>
+            <div class="form-group" style="display:flex; gap: 10px; align-items: flex-end;">
+                <div style="flex:1;">
+                    <label>Intevalo (min)</label>
+                    <input type="number" id="i-cron-min" placeholder="Ex: 60"
+                        style="width: 100%; border: 1px solid #334155; padding: 8px; border-radius: 6px; background: #0f172a; color:#fff;">
+                </div>
+                <button onclick="toggleCron()" id="btn-cron"
+                    style="background:#2563eb; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:600;">Agendar</button>
+            </div>
+            <div id="cron-status" style="font-size:11px; color:#10b981; margin-top:5px; display:none;">Ativo: Rodando a
+                cada <span id="lbl-cron-time"></span>m</div>
         </div>
 
-        <hr style="border:0; border-top:1px solid #334155; margin: 20px 0;">
-        
-        <!-- Ocultado IA e Serper - PIVOT GMB Forensics -->
-        <h2 style="color: #cbd5e1; font-size: 14px; margin-bottom: 20px;">🕵️ Filtros de Forense</h2>
-        <div class="form-group">
-            <label>Filtrar por Avaliações</label>
-            <select id="i-filter" style="width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155; padding: 12px; border-radius: 6px;">
-                <option value="all">Ver Todos</option>
-                <option value="0-3">Críticos (0 a 3.9 Estrelas)</option>
-                <option value="4-4.9">Bons (4 a 4.9 Estrelas)</option>
-                <option value="5">Perfeitos (5 Estrelas)</option>
-            </select>
-        </div>
+        <!-- Content Area -->
+        <div class="content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 500;">Console Live</h2>
+                <button onclick="exportPDF()"
+                    style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;">📄
+                    Exportar PDF</button>
+                <button onclick="exportCSV()"
+                    style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer;">📥
+                    Exportar .CSV</button>
+            </div>
 
-        <button id="btn-start" class="master-btn" onclick="iniciarCaptacao()">🚀 INICIAR CAPTAÇÃO</button>
-        <button id="btn-stop" class="master-btn stop-btn" onclick="pausarCaptacao()">🛑 PAUSAR MOTOR</button>
+            <div id="sys-status">Aguardando coordenadas. Preencha o nicho e clique em Iniciar.</div>
 
-        <div class="stat-box">
-            <span style="color:#94a3b8;">Tokens Gemini:</span>
-            <span id="st-tokens" class="stat-value" style="color:#8b5cf6;">0</span>
-        </div>
-        <div class="stat-box">
-            <span style="color:#94a3b8;">Créditos Serper:</span>
-            <span id="st-serper" class="stat-value" style="color:#f59e0b;">0</span>
+            <div
+                style="background: #1e293b; border-radius: 8px; border: 1px solid #334155; overflow: hidden; max-height: 700px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Score</th>
+                            <th>Empresa / Endereço</th>
+                            <th>Status Diagnóstico</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lead-list">
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Content Area -->
-    <div class="content">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h2 style="margin: 0; font-size: 18px; font-weight: 500;">Console Live</h2>
-            <button onclick="exportPDF()" style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;">📄 Exportar PDF</button>
-            <button onclick="exportCSV()" style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer;">📥 Exportar .CSV</button>
-        </div>
-        
-        <div id="sys-status">Aguardando coordenadas. Preencha o nicho e clique em Iniciar.</div>
+    <!-- Modal Lead -->
+    <div id="leadModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn"
+                onclick="document.getElementById('leadModal').style.display='none'; if(window.pollAudit) clearInterval(window.pollAudit);">&times;</button>
+            <h2 id="m-name" style="margin-top:0; color:#f8fafc; font-size: 24px; letter-spacing: -0.5px;">Empresa</h2>
+            <div id="m-info"
+                style="font-size:14px; color:#cbd5e1; line-height:1.6; border-bottom: 1px solid #334155; padding-bottom: 20px;">
+            </div>
 
-        <div style="background: #1e293b; border-radius: 8px; border: 1px solid #334155; overflow: hidden; max-height: 700px; overflow-y: auto;">
-            <table>
-                <thead>
-                  <tr>
-                    <th>Score</th>
-                    <th>Empresa / Endereço</th>
-                    <th>Status Diagnóstico</th>
-                  </tr>
-                </thead>
-                <tbody id="lead-list">
-                </tbody>
-            </table>
+            <div class="ai-box">
+                <h3
+                    style="margin-top:0; color:#8b5cf6; font-size:16px; letter-spacing: 0.5px; text-transform: uppercase;">
+                    Inteligência de Vendas</h3>
+                <div id="m-ai-text" style="font-size:14px; color:#e2e8f0; line-height:1.6;"></div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Modal Lead -->
-<div id="leadModal" class="modal">
-    <div class="modal-content">
-      <button class="close-btn" onclick="document.getElementById('leadModal').style.display='none'; if(window.pollAudit) clearInterval(window.pollAudit);">&times;</button>
-      <h2 id="m-name" style="margin-top:0; color:#f8fafc; font-size: 24px; letter-spacing: -0.5px;">Empresa</h2>
-      <div id="m-info" style="font-size:14px; color:#cbd5e1; line-height:1.6; border-bottom: 1px solid #334155; padding-bottom: 20px;"></div>
-      
-      <div class="ai-box">
-        <h3 style="margin-top:0; color:#8b5cf6; font-size:16px; letter-spacing: 0.5px; text-transform: uppercase;">Inteligência de Vendas</h3>
-        <div id="m-ai-text" style="font-size:14px; color:#e2e8f0; line-height:1.6;"></div>
-      </div>
-    </div>
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>

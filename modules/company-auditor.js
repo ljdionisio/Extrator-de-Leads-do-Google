@@ -2,16 +2,16 @@ async function auditCompany(mapsPage, url) {
     let warnings = [];
     try {
         await mapsPage.goto(url, { timeout: 60000 });
-    } catch(e) {
+    } catch (e) {
         return null;
     }
-    
+
     await mapsPage.waitForSelector('h1.DUwDvf', { timeout: 10000 }).catch(() => { warnings.push('name_timeout'); });
 
     let name = null;
     try {
         name = await mapsPage.locator('h1.DUwDvf').first().innerText();
-    } catch(e) {
+    } catch (e) {
         warnings.push('name_failed');
     }
     if (!name) return null;
@@ -20,30 +20,67 @@ async function auditCompany(mapsPage, url) {
     try {
         let addrRaw = await mapsPage.locator('button[data-item-id="address"]').first().innerText();
         if (addrRaw) address = addrRaw.replace('Copiou o endereço', '').trim();
-    } catch(e) { warnings.push('address_failed'); }
+    } catch (e) { warnings.push('address_failed'); }
 
     let phone = null;
     try {
         let phoneRaw = await mapsPage.locator('button[data-item-id^="phone:tel"]').first().innerText();
         if (phoneRaw) phone = phoneRaw.replace('Copiou o número de telefone', '').trim();
-    } catch(e) { warnings.push('phone_failed'); }
+    } catch (e) { warnings.push('phone_failed'); }
 
     let website = null;
     try {
         website = await mapsPage.locator('a[data-item-id="authority"]').first().getAttribute('href');
-    } catch(e) { warnings.push('website_failed'); }
+    } catch (e) { warnings.push('website_failed'); }
 
     let instagram = null;
     let facebook = null;
+    let whatsapp = null;
+    let other_public_links = [];
     try {
         const links = await mapsPage.locator('a[href]').all();
         for (const link of links) {
             const hrefText = await link.getAttribute('href').catch(() => '');
             if (!hrefText) continue;
-            if (hrefText.includes('instagram.com')) instagram = hrefText;
-            if (hrefText.includes('facebook.com')) facebook = hrefText;
+            const lowerHref = hrefText.toLowerCase();
+            if (lowerHref.includes('instagram.com')) instagram = hrefText;
+            if (lowerHref.includes('facebook.com')) facebook = hrefText;
         }
-    } catch(e) { warnings.push('socials_failed'); }
+
+        // Enriquecimento Ativo: Se tiver website, visitar buscando links públicos (Max 10s)
+        if (website) {
+            const newPage = await mapsPage.context().newPage();
+            try {
+                await newPage.goto(website, { timeout: 10000, waitUntil: 'domcontentloaded' });
+                const pageLinks = await newPage.$$eval('a[href]', anchors => anchors.map(a => ({ href: a.href, text: a.innerText.trim().toLowerCase() })));
+
+                let processedLinks = new Set();
+                for (const link of pageLinks) {
+                    const href = link.href;
+                    const text = link.text;
+                    if (!href || href.startsWith('javascript:')) continue;
+
+                    const lowerHref = href.toLowerCase();
+                    if (processedLinks.has(lowerHref)) continue;
+                    processedLinks.add(lowerHref);
+
+                    if (lowerHref.includes('instagram.com') && !instagram) instagram = href;
+                    else if (lowerHref.includes('facebook.com') && !facebook) facebook = href;
+                    else if (lowerHref.includes('linkedin.com/company') && other_public_links.length < 5) other_public_links.push(href);
+                    else if ((lowerHref.includes('wa.me') || lowerHref.includes('api.whatsapp.com') || lowerHref.includes('whatsapp.com/send')) && !whatsapp) whatsapp = href;
+                    else if ((text.includes('contato') || text.includes('sobre') || text.includes('serviço') || text.includes('servicos') || text.includes('services') || text.includes('about') || text.includes('contact')) && other_public_links.length < 5) {
+                        other_public_links.push(href);
+                    }
+                }
+                // Remover duplicatas finais
+                other_public_links = [...new Set(other_public_links)];
+            } catch (e) {
+                warnings.push('website_enrichment_timeout');
+            } finally {
+                await newPage.close();
+            }
+        }
+    } catch (e) { warnings.push('socials_enrichment_failed'); }
 
     let rating = null;
     let reviews = null;
@@ -55,14 +92,14 @@ async function auditCompany(mapsPage, url) {
                 rating = parseFloat(match[2].replace(',', '.'));
                 reviews = parseInt(match[3].replace(/[.,]/g, ''));
             } else {
-               const simpleMatch = ratingEl.match(/([\d.,]+).*?\(([\d.,]+)\)/);
-               if(simpleMatch) {
-                   rating = parseFloat(simpleMatch[1].replace(',', '.'));
-                   reviews = parseInt(simpleMatch[2].replace(/[.,]/g, ''));
-               }
+                const simpleMatch = ratingEl.match(/([\d.,]+).*?\(([\d.,]+)\)/);
+                if (simpleMatch) {
+                    rating = parseFloat(simpleMatch[1].replace(',', '.'));
+                    reviews = parseInt(simpleMatch[2].replace(/[.,]/g, ''));
+                }
             }
         }
-    } catch(e) { warnings.push('rating_failed'); }
+    } catch (e) { warnings.push('rating_failed'); }
 
     let negative_reviews = [];
     try {
@@ -85,7 +122,7 @@ async function auditCompany(mapsPage, url) {
                 }
             }
         }
-    } catch(e) { warnings.push('neg_reviews_failed'); }
+    } catch (e) { warnings.push('neg_reviews_failed'); }
 
     let last_post = null;
     try {
@@ -101,10 +138,10 @@ async function auditCompany(mapsPage, url) {
                 }
             }
         }
-    } catch(e) { warnings.push('last_post_failed'); }
+    } catch (e) { warnings.push('last_post_failed'); }
 
     return {
-        name, address, phone, website, instagram, facebook, rating, reviews, negative_reviews, last_post, warnings
+        name, address, phone, website, instagram, facebook, whatsapp, other_public_links, rating, reviews, negative_reviews, last_post, warnings
     };
 }
 

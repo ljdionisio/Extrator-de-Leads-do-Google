@@ -53,13 +53,22 @@ async function generatePDF(leads, niche, city) {
             <span class="badge ${pClass}">Prioridade Comercial: ${l.priority ? l.priority.toUpperCase() : 'BAIXA'} | Score AI: ${l.score || 0}</span>
             <p><strong>📍 Endereço:</strong> ${l.address || 'N/A'}</p>
             <p><strong>📞 Telefone:</strong> ${l.phone || 'N/A'}</p>
+            <p><strong>📍 Maps:</strong> ${l.google_maps_url ? `<a href="${l.google_maps_url}">${l.google_maps_url}</a>` : 'N/A'}</p>
+            <p><strong>🌐 Website:</strong> ${l.website ? `<a href="${l.website}">${l.website}</a>` : 'N/A'}</p>
+            <p><strong>📸 Insta:</strong> ${l.instagram ? `<a href="${l.instagram}">${l.instagram}</a>` : 'N/A'} | <strong>📘 Face:</strong> ${l.facebook ? `<a href="${l.facebook}">${l.facebook}</a>` : 'N/A'} | <strong>💬 Whats:</strong> ${l.whatsapp_url ? `<a href="${l.whatsapp_url}">${l.whatsapp_url}</a>` : 'N/A'}</p>
             <p><strong>⭐ Avaliação:</strong> ${l.rating || 0} (${l.reviews || 0} reviews)</p>
             
             <div class="section-title">Dores Detectadas (Motivos de Vendas):</div>
             ${reasonsHtml}
             
-            <div class="section-title">Mensagem Pronta de Prospecção (Copiar para WhatsApp):</div>
-            <div class="msg-box">${l.draft_message || 'Sem mensagem disponível.'}</div>
+            <div class="section-title">Links Encontrados no Enriquecimento:</div>
+            ${l.other_public_links && l.other_public_links.length > 0 ? '<ul>' + l.other_public_links.slice(0, 5).map(lnk => `<li><a href="${lnk}">${lnk}</a></li>`).join('') + '</ul>' : '<p>Nenhum link adicional útil encontrado.</p>'}
+            
+            <div class="section-title">Mensagem Consultiva (WhatsApp):</div>
+            <div class="msg-box">${l.mensagem_whatsapp || l.draft_message || 'Sem mensagem disponível.'}</div>
+            
+            <div class="section-title">Argumento SDR (Comercial):</div>
+            <div class="msg-box" style="border-left-color: #f59e0b;">${l.argumento_comercial || 'N/A'}</div>
         </div>
         `;
     });

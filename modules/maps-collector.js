@@ -3,6 +3,7 @@ const { auditCompany } = require('./company-auditor.js');
 const { calculateLeadScore } = require('./lead-scorer.js');
 const { generateMessage } = require('./message-generator.js');
 const { generateKeywords } = require('./keyword-expander.js');
+const crypto = require('crypto');
 
 // Utilitário para pausar a execução
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
@@ -78,6 +79,8 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                 }
             }
 
+            let topCompetitors = [];
+
             await dashPage.evaluate(({ c, v }) => { window.updateStatusMsg(`🕵️ +${c} Novos Leads vivos interceptados na keyword "${v}"! Explorando Forense GMB...`); }, { c: sessionHrefs.length, v: variant });
 
             for (let i = 0; i < sessionHrefs.length; i++) {
@@ -91,7 +94,7 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                     if (!auditResult || !auditResult.name) continue;
 
                     let scoreResult = { score: 0, priority: 'baixa', reasons: [] };
-                    let dfMsg = "Mensagem não pôde ser gerada (erro interno).";
+                    let messages = { whatsapp_curta: "", whatsapp_consultiva: "Erro", email: "", argumento_comercial: "" };
                     const wrn = auditResult.warnings || [];
 
                     try {
@@ -107,20 +110,29 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                     }
 
                     try {
-                        dfMsg = generateMessage({ company_name: auditResult.name }, auditResult, city.trim());
+                        messages = generateMessage({ company_name: auditResult.name }, auditResult, city.trim());
                     } catch (e) {
                         wrn.push('message_failed');
                         console.error(`[${auditResult.name}] Erro na mensagem:`, e.message);
                     }
+
+                    topCompetitors.push({ name: auditResult.name, rating: auditResult.rating || 0, reviews: auditResult.reviews || 0 });
+                    topCompetitors.sort((a, b) => b.reviews - a.reviews);
+                    if (topCompetitors.length > 3) topCompetitors.length = 3;
+                    const concorrentes_referencia = topCompetitors.map(c => `${c.name} (${c.rating}⭐ com ${c.reviews} reviews)`).join(" | ");
 
                     const leadStatus = wrn.length > 0 ? 'partial' : 'success';
 
                     const fullLeadObj = {
                         name: auditResult.name,
                         address: auditResult.address ? auditResult.address.split('-')[0].trim() : '',
+                        source_search_url: `https://www.google.com/maps/search/${encodeURIComponent(variant)}/`,
+                        google_maps_url: sessionHrefs[i],
                         website: auditResult.website || '',
                         instagram: auditResult.instagram || '',
                         facebook: auditResult.facebook || '',
+                        whatsapp_url: auditResult.whatsapp || '',
+                        other_public_links: auditResult.other_public_links || [],
                         phone: auditResult.phone || '',
                         rating: auditResult.rating || 0,
                         reviews: auditResult.reviews || 0,
@@ -133,14 +145,40 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                         status: leadStatus,
                         warnings: wrn,
                         niche: niche.trim(),
-                        city: city.trim()
+                        city: city.trim(),
+
+                        // Expansão CRM e Inteligência Competitiva
+                        lead_id_estavel: crypto.createHash('md5').update(`${auditResult.name}-${auditResult.phone || ''}`).digest("hex"),
+                        data_captacao: new Date().toISOString(),
+                        prioridade_comercial: scoreResult.priority,
+                        prioridade_motivos: scoreResult.reasons,
+                        resumo_executivo: "",
+                        concorrentes_referencia: concorrentes_referencia,
+                        oferta_recomendada: "",
+                        mensagem_whatsapp_curta: messages.whatsapp_curta,
+                        mensagem_whatsapp: messages.whatsapp_consultiva,
+                        mensagem_email: messages.email,
+                        argumento_comercial: messages.argumento_comercial,
+                        status_pipeline: "Novo",
+                        responsavel: "",
+                        ultima_acao: null,
+                        proxima_acao: null,
+                        origem_snapshot: "Google Maps Scraper V2",
+                        duplicado_de: null,
+                        enrichment_quality: (auditResult.other_public_links && auditResult.other_public_links.length > 0) ? "Enriquecido" : "Básico",
+                        evidence_summary: ""
                     };
+
+                    if (getRobotStopped()) {
+                        console.log(`[${auditResult.name}] Interlock atingido após auditoria. Lead descartado.`);
+                        break;
+                    }
 
                     const { saveLead } = require('./local-store.js');
                     const wasSaved = saveLead(fullLeadObj);
 
-                    {
-                        // Exibe UI Imediatamente só se for lead original
+                    if (wasSaved) {
+                        // Exibe UI Imediatamente só se for lead original ou deduplicado aceito
                         await dashPage.evaluate((l) => {
                             if (window.addLead) window.addLead(l);
                         }, fullLeadObj);
