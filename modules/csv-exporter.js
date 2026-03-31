@@ -5,7 +5,7 @@ const { getDesktopExportDir } = require('./path-helper.js');
 async function generateCSV(leads, niche, city) {
     if (!leads || leads.length === 0) return null;
 
-    let csv = 'Score,Prioridade,Rating,Reviews,Empresa,Endereco,Telefone,Site,Instagram,Facebook,WhatsApp,Pesquisa,MapsURL,OutrosLinks,StatusPipeline,ArgumentoComercial,UltimoPostGMB\n';
+    let csv = 'Score,Prioridade,Rating,Reviews,Empresa,Endereco,Telefone,Site,Instagram,Facebook,WhatsApp,Pesquisa,MapsURL,OutrosLinks,StatusPipeline,ArgumentoComercial,UltimoPostGMB,Repescado\n';
 
     leads.forEach(l => {
         let lName = l.name ? l.name.replace(/"/g, '""') : '';
@@ -27,7 +27,8 @@ async function generateCSV(leads, niche, city) {
             ((l.other_public_links || []).join(';')) + '","' +
             (l.status_pipeline || 'Novo') + '","' +
             arg + '","' +
-            (l.last_post || '') + '"\n';
+            (l.last_post || '') + '","' +
+            (l.duplicado_de ? 'SIM' : 'NAO') + '"\n';
     });
 
     const safeName = `Extracao_${niche}_${city}_${Date.now()}`.replace(/[^a-z0-9_]/gi, '_').toLowerCase() + '.csv';

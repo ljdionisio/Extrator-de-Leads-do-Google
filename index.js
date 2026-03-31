@@ -91,6 +91,7 @@ async function run() {
         const fs = require('fs');
         const path = require('path');
         const LEADS_FILE = path.join(process.cwd(), 'data', 'leads.json');
+        const HIST_FILE = path.join(process.cwd(), 'data', 'history_snapshots.json');
         try {
             const leads = JSON.parse(fs.readFileSync(LEADS_FILE, 'utf8'));
             const idx = leads.findIndex(l => l.lead_id_estavel === leadId);
@@ -98,6 +99,14 @@ async function run() {
                 leads[idx].status_pipeline = newStatus;
                 leads[idx].ultima_acao = new Date().toISOString();
                 fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf8');
+            }
+
+            const history = JSON.parse(fs.readFileSync(HIST_FILE, 'utf8'));
+            const histIdx = history.findIndex(l => l.lead_id_estavel === leadId);
+            if (histIdx !== -1) {
+                history[histIdx].status_pipeline = newStatus;
+                history[histIdx].ultima_acao = new Date().toISOString();
+                fs.writeFileSync(HIST_FILE, JSON.stringify(history, null, 2), 'utf8');
             }
         } catch (e) { }
     });

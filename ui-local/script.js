@@ -9,7 +9,7 @@ async function iniciarCaptacao(triggerType = 'manual') {
     const city = document.getElementById('i-city').value;
 
     if (!niche || !city) {
-        alert("Preencha Nicho e Cidade para continuar.");
+        alert("⚠️ Por favor, informe o Nicho e a Cidade para o robô iniciar a varredura.");
         return;
     }
 
@@ -48,7 +48,7 @@ window.renderEmptyState = function (tbody) {
 window.clearLeads = async function () {
     if (window.isClearing) return console.warn("Limpeza em andamento, lock ativo.");
 
-    const confirmed = confirm("Tem certeza que deseja apagar todas as captações salvas? Isso não pode ser desfeito.");
+    const confirmed = confirm("🧹 Limpar a tela da sessão atual?\nFique tranquilo, o histórico global já foi salvo automaticamente em backup e não será perdido.");
     if (confirmed) {
         window.isClearing = true;
         const btnClear = document.getElementById('btn-clear');
@@ -136,7 +136,7 @@ window.updatePipelineStatus = async function (leadId, newStatus) {
 };
 
 window.exportCSV = async function () {
-    if (window.leads.length === 0) return alert("Nenhum lead extraído ainda.");
+    if (window.leads.length === 0) return alert("⚠️ Nenhum lead na tela para exportar. Faça uma captação primeiro.");
 
     document.getElementById('sys-status').innerText = "> Exportando CSV, aguarde...";
 
@@ -171,10 +171,11 @@ window.renderLeadRow = function (l, tbody) {
     let resumo = l.prioridade_motivos ? l.prioridade_motivos.join(" | ") : (l.reasons ? l.reasons.join(" | ") : "");
 
     let bgStatus = l.status_pipeline === 'Perdido' ? '#ef4444' : l.status_pipeline === 'Fechado' ? '#10b981' : '#334155';
+    let badgeDup = l.duplicado_de ? '<span style="background:#f59e0b; color:#fff; padding:2px 4px; border-radius:4px; font-size:9px; margin-left:6px; vertical-align:middle;">⚠️ REPESCADO</span>' : '';
 
     tr.innerHTML =
         '<td class="' + scoreClass + '">' + l.score + ' pts<br><span style="font-size:10px;">' + priorityBadge + '</span></td>' +
-        '<td><strong style="color:#f8fafc; font-size:13px;">' + l.name + '</strong><br><span style="color:#64748b; font-size:11px;">' + (l.address || 'Sem Endereço') + '</span></td>' +
+        '<td><strong style="color:#f8fafc; font-size:13px;">' + l.name + badgeDup + '</strong><br><span style="color:#64748b; font-size:11px;">' + (l.address || 'Sem Endereço') + '</span></td>' +
         '<td><select onclick="event.stopPropagation()" onchange="window.updatePipelineStatus(\'' + l.lead_id_estavel + '\', this.value)" style="background: ' + bgStatus + '; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px;">' +
         '<option value="Novo" ' + (l.status_pipeline === 'Novo' ? 'selected' : '') + '>Novo</option>' +
         '<option value="Analisado" ' + (l.status_pipeline === 'Analisado' ? 'selected' : '') + '>Analisado</option>' +
@@ -270,7 +271,7 @@ window.showDetails = async function (idx) {
 };
 
 window.exportPDF = async function () {
-    if (window.leads.length === 0) return alert("Nenhum lead extraído ainda.");
+    if (window.leads.length === 0) return alert("⚠️ A tabela está vazia. Não há como gerar o PDF comercial agora.");
     const niche = document.getElementById('i-niche') ? document.getElementById('i-niche').value : 'Nicho';
     const city = document.getElementById('i-city') ? document.getElementById('i-city').value : 'Cidade';
 
@@ -310,9 +311,9 @@ window.saveWebhook = async function () {
 };
 
 window.syncWebhook = async function () {
-    if (!window.leads || window.leads.length === 0) return alert("Nenhum lead para sincronizar.");
+    if (!window.leads || window.leads.length === 0) return alert("⚠️ Sem leads na matriz para envio.");
     const url = document.getElementById('i-webhook-url').value;
-    if (!url || !url.startsWith("http")) return alert("Configure uma URL de Webhook válida primeiro.");
+    if (!url || !url.startsWith("http")) return alert("⚙️ Configure a URL HTTPS do Hook do Make.com ou RD Station no menu lateral antes.");
 
     document.getElementById('sys-status').innerText = "> Sincronizando lotes via Webhook...";
 
@@ -365,6 +366,8 @@ window.fetchObservability = async function () {
             document.getElementById('obs-last-run').innerHTML = `
                 <span id="obs-lr-target" style="color:#f8fafc;"><strong>Alvo:</strong> ${last.niche} em ${last.city}</span><br>
                 Status: <strong id="obs-lr-status" style="color:${last.status_final === 'OK' ? '#10b981' : '#ef4444'}">${last.status_final}</strong><br>
+                Horário: <span style="color:#94a3b8; font-size:11px;">${new Date(last.started_at).toLocaleString()}</span><br>
+                Origem: <span style="color:#f59e0b; font-size:11px;">${last.trigger_type ? last.trigger_type.toUpperCase() : 'MANUAL'}</span><br>
                 Duração: <span id="obs-lr-duration" style="color:#f8fafc;">${last.duration_ms ? (last.duration_ms / 1000).toFixed(1) + 's' : 'Rodando...'}</span><br>
                 Retorno: <strong id="obs-lr-novos" style="color:#10b981;">Novos: ${last.total_novos || 0}</strong> | Dups: <span id="obs-lr-dups">${last.total_duplicados || 0}</span> | Err: <span style="color:#ef4444">${last.total_erros || 0}</span>
             `;

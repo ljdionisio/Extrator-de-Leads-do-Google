@@ -28,22 +28,60 @@ if (!fs.existsSync(EVENTS_LOG_FILE)) {
 if (!fs.existsSync(SETTINGS_FILE)) {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ webhookUrl: '' }), 'utf8');
 }
-
-function loadLeads() {
+function initBackup() {
     try {
-        const data = fs.readFileSync(LEADS_FILE, 'utf8');
-        return JSON.parse(data);
+        if (!fs.existsSync(HIST_FILE)) return;
+
+        // Rotação de 1 a 5
+        const maxBackups = 5;
+        for (let i = maxBackups - 1; i >= 1; i--) {
+            let oldBkp = path.join(DATA_DIR, `history_backup_${i}.json`);
+            let newBkp = path.join(DATA_DIR, `history_backup_${i + 1}.json`);
+            if (fs.existsSync(oldBkp)) fs.renameSync(oldBkp, newBkp);
+        }
+
+        fs.copyFileSync(HIST_FILE, path.join(DATA_DIR, 'history_backup_1.json'));
+        console.log("[Backup] Rotação de histórico concluída.");
     } catch (e) {
-        return [];
+        console.error("[Backup Error] Falha ao rotacionar backups:", e.message);
     }
 }
 
-function loadHistory() {
+initBackup();
+
+function safeLoadJson(filePath, emptyFallback) {
     try {
-        return JSON.parse(fs.readFileSync(HIST_FILE, 'utf8'));
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
     } catch (e) {
-        return [];
+        console.error(`[Data Integrity] Erro ao ler ${path.basename(filePath)}. Tentando recuperar...`);
+        // Copia o arquivo corrompido para não varrer se for um typo manual
+        try {
+            if (fs.existsSync(filePath)) {
+                fs.copyFileSync(filePath, filePath + `.corrupted_${Date.now()}`);
+            }
+        } catch (ex) { }
+
+        // Se for o arquivo de história, tenta ler o backup primário
+        if (filePath.includes('history_')) {
+            try {
+                let fallback = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'history_backup_1.json'), 'utf8'));
+                console.log("[Data Integrity] Histórico restaurado a partir do backup 1 com sucesso!");
+                return fallback;
+            } catch (ex2) {
+                console.error("[Data Integrity] Falha ao restaurar pelo último backup. Resetando cache.");
+            }
+        }
+
+        return emptyFallback;
     }
+}
+
+function loadLeads() {
+    return safeLoadJson(LEADS_FILE, []);
+}
+
+function loadHistory() {
+    return safeLoadJson(HIST_FILE, []);
 }
 
 function saveLead(leadData) {

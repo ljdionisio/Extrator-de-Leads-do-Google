@@ -86,10 +86,15 @@
                     Filtros</button>
             </div>
 
-            <button id="btn-start" class="master-btn" onclick="iniciarCaptacao()">🚀 INICIAR CAPTAÇÃO</button>
-            <button id="btn-stop" class="master-btn stop-btn" onclick="pausarCaptacao()">🛑 PAUSAR MOTOR</button>
+            <button id="btn-start" class="master-btn" onclick="iniciarCaptacao()"
+                title="Dispara a automação do robô no Google Maps para o alvo especificado.">🚀 INICIAR
+                CAPTAÇÃO</button>
+            <button id="btn-stop" class="master-btn stop-btn" onclick="pausarCaptacao()"
+                title="Interrompe o scraping com segurança, gravando tudo que já encontrou.">🛑 PAUSAR MOTOR</button>
             <button id="btn-clear" class="master-btn" onclick="clearLeads()"
-                style="background: #3f3f46; margin-top: 15px;">🗑️ LIMPAR CAPTAÇÕES</button>
+                style="background: #3f3f46; margin-top: 15px;"
+                title="Limpa visualmente a tela para um novo lote (mantém o backup global preservado).">🗑️ LIMPAR
+                CAPTAÇÕES</button>
 
             <h2 style="color: #cbd5e1; font-size: 14px; margin-bottom: 15px; margin-top:30px;">⏱️ Automação (Cron)</h2>
             <div class="form-group" style="display:flex; gap: 10px; align-items: flex-end;">
@@ -99,7 +104,8 @@
                         style="width: 100%; border: 1px solid #334155; padding: 8px; border-radius: 6px; background: #0f172a; color:#fff;">
                 </div>
                 <button onclick="toggleCron()" id="btn-cron"
-                    style="background:#2563eb; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:600;">Agendar</button>
+                    style="background:#2563eb; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:600;"
+                    title="Automatiza a captação repetidamente dentro do intervalo estipulado.">Agendar</button>
             </div>
             <div id="cron-status" style="font-size:11px; color:#10b981; margin-top:5px; display:none;">Ativo: Rodando a
                 cada <span id="lbl-cron-time"></span>m</div>
@@ -124,7 +130,8 @@
                         style="width: 100%; border: 1px solid #334155; padding: 8px; border-radius: 6px; background: #0f172a; color:#fff; font-size:11px;">
                 </div>
                 <button onclick="saveWebhook()"
-                    style="background:#3b82f6; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Salvar</button>
+                    style="background:#3b82f6; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;"
+                    title="Salva a URL de Webhook no disco.">Salvar</button>
             </div>
         </div>
 
@@ -135,13 +142,16 @@
                 <h2 style="margin: 0; font-size: 18px; font-weight: 500;">Console Live</h2>
                 <div class="content-header-buttons">
                     <button onclick="exportPDF()"
-                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;">📄
+                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;"
+                        title="Gera o report forense executivo em formato PDF para enviar ao prospect.">📄
                         Exportar PDF</button>
                     <button onclick="exportCSV()"
-                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;">📥
+                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;"
+                        title="Gera uma planilha limpa local para carregar em outro software.">📥
                         Exportar .CSV</button>
                     <button onclick="syncWebhook()"
-                        style="background:#10b981; border: none; color:#fff; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:600;">☁️
+                        style="background:#10b981; border: none; color:#fff; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:600;"
+                        title="Faz o push do lote visível para o CRM SaaS via Request HTTP.">☁️
                         Enviar p/ Webhook</button>
                 </div>
             </div>
