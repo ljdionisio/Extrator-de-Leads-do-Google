@@ -4,6 +4,8 @@ window.updateStatusMsg = function (msg) {
     document.getElementById('sys-status').innerText = "> " + msg;
 };
 
+window.lastCampaignName = "";
+
 async function iniciarCaptacao(triggerType = 'manual') {
     const niche = document.getElementById('i-niche').value;
     const city = document.getElementById('i-city').value;
@@ -12,6 +14,27 @@ async function iniciarCaptacao(triggerType = 'manual') {
         alert("⚠️ Por favor, informe o Nicho e a Cidade para o robô iniciar a varredura.");
         return;
     }
+
+    const currentCampaignName = (niche + " em " + city).toLowerCase().trim();
+
+    // Auto-Segmentação: Impede que o usuário misture relatórios sem querer.
+    if (window.lastCampaignName && window.lastCampaignName !== currentCampaignName && window.leads.length > 0) {
+        // Confirm bloqueia a UI em alguns casos do Chrome/Playwright, substituido por execução limpa + log.
+        window.isClearing = true;
+        try {
+            if (window.clearLocalStore) await window.clearLocalStore();
+            window.leads = [];
+            window.renderEmptyState();
+            document.getElementById('sys-status').innerText = "> Auto-limpeza efetuada para proteger segmentação...";
+            await new Promise(res => setTimeout(res, 300));
+        } catch (err) {
+            console.error(err);
+        } finally {
+            window.isClearing = false;
+        }
+    }
+
+    window.lastCampaignName = currentCampaignName;
 
     document.getElementById('btn-start').style.display = 'none';
     document.getElementById('btn-stop').style.display = 'block';
@@ -48,31 +71,46 @@ window.renderEmptyState = function (tbody) {
 window.clearLeads = async function () {
     if (window.isClearing) return console.warn("Limpeza em andamento, lock ativo.");
 
-    const confirmed = confirm("🧹 Limpar a tela da sessão atual?\nFique tranquilo, o histórico global já foi salvo automaticamente em backup e não será perdido.");
-    if (confirmed) {
-        window.isClearing = true;
-        const btnClear = document.getElementById('btn-clear');
-        if (btnClear) btnClear.disabled = true;
+    // Removemos a caixa de "confirm" pois a ação é 100% segura (tudo tem backup) e o Chrome às vezes trava nela.
+    window.isClearing = true;
+    const btnClear = document.getElementById('btn-clear');
+    if (btnClear) btnClear.disabled = true;
 
-        if (window.pausarCaptacao && document.getElementById('btn-stop').style.display !== 'none') {
+    try {
+        const btnStop = document.getElementById('btn-stop');
+        const isEngineActive = btnStop && window.getComputedStyle(btnStop).display !== 'none';
+
+        // Pausar motor fisicamente se estiver ativo e aguardar expurgo da inércia
+        if (window.pausarCaptacao && isEngineActive) {
             await window.pausarCaptacao();
+            document.getElementById('sys-status').innerText = "> Drenando inércia do motor para garantir corte limpo...";
+            await new Promise(res => setTimeout(res, 2000));
         }
 
+        // Limpeza Lógica
         window.leads = [];
+        window.lastCampaignName = ""; // Reseta segmentação de campanha
 
+        // Limpeza Fisica Local (via NodeJS bridge)
         if (window.clearLocalStore) {
             await window.clearLocalStore();
         }
 
-        window.renderEmptyState();
+        // Limpeza Visual
+        if (window.renderEmptyState) window.renderEmptyState();
 
         document.querySelectorAll('select[id^=f-]').forEach(e => e.value = 'all');
         const iFilter = document.getElementById('i-filter');
         if (iFilter) iFilter.value = 'all';
 
-        if (window.logEvent) window.logEvent('WARN', 'Sessão limpa pelo usuário. Histórico foi mantido.');
-        window.updateStatusMsg("Captações limpas com sucesso.");
+        if (window.logEvent) window.logEvent('WARN', 'Sessão descarregada pelo operador. Histórico salvo.');
+        if (window.updateStatusMsg) window.updateStatusMsg("✅ Captações limpas! Pronto para novo lote.");
 
+    } catch (err) {
+        console.error("Falha bruta no Clean:", err);
+        alert("⚠️ Erro interno de interface ao limpar. Veja os logs.");
+        if (window.updateStatusMsg) window.updateStatusMsg("❌ Falha na limpeza.");
+    } finally {
         if (btnClear) btnClear.disabled = false;
         window.isClearing = false;
     }
