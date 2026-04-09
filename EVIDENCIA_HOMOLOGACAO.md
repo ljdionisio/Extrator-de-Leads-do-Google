@@ -1,7 +1,7 @@
 # Evidência de Homologação — Lead King v2.0
 
-**Commit**: `db2d0ae`  
-**Data**: 08/04/2026, 23:21:05  
+**Commit**: `d9afaf8`  
+**Data**: 08/04/2026, 23:23:06  
 **Veredito**: GO DEFINITIVO  
 
 ## Resultados
@@ -77,24 +77,24 @@ Lead escolhido:
   Reclamações: 2
 
 >> Gerando PDF Externo...
-  ✅ PDF gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\diagnostico_digital_auto_mec_nica_s_o_jorge_1775701275274.pdf
+  ✅ PDF gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\diagnostico_digital_auto_mec_nica_s_o_jorge_1775701394444.pdf
 
 >> Gerando CSV Externo...
-  ✅ CSV gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\extracao_externo_oficinas_campinas_1775701277573.csv
+  ✅ CSV gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\extracao_externo_oficinas_campinas_1775701395499.csv
 
 >> Validando separação no CSV Externo...
   ✅ Separação confirmada — zero vazamentos
 
 >> Validando conteúdo do PDF Externo via source...
-  Tamanho do PDF: 1186.9 KB
+  Tamanho do PDF: 898.0 KB
   ✅ Tamanho do PDF adequado
 
 === RESULTADO DO SMOKE TEST ===
 
 Artefatos gerados:
-  📄 PDF: diagnostico_digital_auto_mec_nica_s_o_jorge_1775701275274.pdf
-  📊 CSV: extracao_externo_oficinas_campinas_1775701277573.csv
-  Tamanho PDF: 1186.9 KB
+  📄 PDF: diagnostico_digital_auto_mec_nica_s_o_jorge_1775701394444.pdf
+  📊 CSV: extracao_externo_oficinas_campinas_1775701395499.csv
+  Tamanho PDF: 898.0 KB
 
 ✅ SMOKE TEST PASSOU
    - Lead processado com sucesso
