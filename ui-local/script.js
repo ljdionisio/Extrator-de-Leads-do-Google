@@ -1,5 +1,11 @@
 window.leads = [];
 
+// Helper de sanitização XSS — escapa HTML em dados de scraping
+window.escapeHtml = function (str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+};
+
 window.updateStatusMsg = function (msg) {
     document.getElementById('sys-status').innerText = "> " + msg;
 };
@@ -211,10 +217,11 @@ window.renderLeadRow = function (l, tbody) {
     let bgStatus = l.status_pipeline === 'Perdido' ? '#ef4444' : l.status_pipeline === 'Fechado' ? '#10b981' : '#334155';
     let badgeDup = l.duplicado_de ? '<span style="background:#f59e0b; color:#fff; padding:2px 4px; border-radius:4px; font-size:9px; margin-left:6px; vertical-align:middle;">⚠️ REPESCADO</span>' : '';
 
+    const esc = window.escapeHtml;
     tr.innerHTML =
-        '<td class="' + scoreClass + '">' + l.score + ' pts<br><span style="font-size:10px;">' + priorityBadge + '</span></td>' +
-        '<td><strong style="color:#f8fafc; font-size:13px;">' + l.name + badgeDup + '</strong><br><span style="color:#64748b; font-size:11px;">' + (l.address || 'Sem Endereço') + '</span></td>' +
-        '<td><select onclick="event.stopPropagation()" onchange="window.updatePipelineStatus(\'' + l.lead_id_estavel + '\', this.value)" style="background: ' + bgStatus + '; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px;">' +
+        '<td class="' + scoreClass + '">' + (l.score || 0) + ' pts<br><span style="font-size:10px;">' + esc(priorityBadge) + '</span></td>' +
+        '<td><strong style="color:#f8fafc; font-size:13px;">' + esc(l.name) + badgeDup + '</strong><br><span style="color:#64748b; font-size:11px;">' + esc(l.address || 'Sem Endereço') + '</span></td>' +
+        '<td><select onclick="event.stopPropagation()" onchange="window.updatePipelineStatus(\'' + esc(l.lead_id_estavel) + '\', this.value)" style="background: ' + bgStatus + '; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px;">' +
         '<option value="Novo" ' + (l.status_pipeline === 'Novo' ? 'selected' : '') + '>Novo</option>' +
         '<option value="Analisado" ' + (l.status_pipeline === 'Analisado' ? 'selected' : '') + '>Analisado</option>' +
         '<option value="Abordado" ' + (l.status_pipeline === 'Abordado' ? 'selected' : '') + '>Abordado</option>' +
@@ -222,7 +229,7 @@ window.renderLeadRow = function (l, tbody) {
         '<option value="Proposta Enviada" ' + (l.status_pipeline === 'Proposta Enviada' ? 'selected' : '') + '>Proposta Enviada</option>' +
         '<option value="Fechado" ' + (l.status_pipeline === 'Fechado' ? 'selected' : '') + '>Fechado</option>' +
         '<option value="Perdido" ' + (l.status_pipeline === 'Perdido' ? 'selected' : '') + '>Perdido</option>' +
-        '</select><br><span style="color:#cbd5e1; font-size:11px; line-height:1.4; display:block; margin-top: 4px;">' + resumo + '</span></td>';
+        '</select><br><span style="color:#cbd5e1; font-size:11px; line-height:1.4; display:block; margin-top: 4px;">' + esc(resumo) + '</span></td>';
     tbody.appendChild(tr);
 }
 
@@ -252,15 +259,19 @@ window.showDetails = async function (idx) {
     document.getElementById('leadModal').style.display = 'block';
     document.getElementById('m-name').innerText = l.name;
 
-    let info = '<p><strong>📍 Maps:</strong> ' + (l.google_maps_url ? '<a href="' + l.google_maps_url + '" target="_blank" style="color:#3b82f6;">Google Maps</a>' : 'N/A') + '</p>';
-    info += '<p><strong>📞</strong> ' + (l.phone ? l.phone : 'Sem contato telefônico') + '</p>';
-    info += '<p><strong>🌐 Web:</strong> ' + (l.website ? '<a href="' + l.website + '" target="_blank" style="color:#3b82f6;">Acessar Website</a>' : 'Sem Domínio') + '</p>';
-    info += '<p><strong>📸 Insta:</strong> ' + (l.instagram ? '<a href="' + l.instagram + '" target="_blank" style="color:#d946ef;">Instagram</a>' : 'N/A') + ' | <strong>📘 Face:</strong> ' + (l.facebook ? '<a href="' + l.facebook + '" target="_blank" style="color:#3b82f6;">Facebook</a>' : 'N/A') + ' | <strong>💬 Whats:</strong> ' + (l.whatsapp_url ? '<a href="' + l.whatsapp_url + '" target="_blank" style="color:#25d366;">WhatsApp</a>' : 'N/A') + '</p>';
+    const esc = window.escapeHtml;
+    // Links são sanitizados: apenas o texto exibido é escapado, href é validado como URL
+    const safeUrl = (url) => { try { new URL(url); return url; } catch (e) { return '#'; } };
+
+    let info = '<p><strong>📍 Maps:</strong> ' + (l.google_maps_url ? '<a href="' + safeUrl(l.google_maps_url) + '" target="_blank" style="color:#3b82f6;">Google Maps</a>' : 'N/A') + '</p>';
+    info += '<p><strong>📞</strong> ' + esc(l.phone || 'Sem contato telefônico') + '</p>';
+    info += '<p><strong>🌐 Web:</strong> ' + (l.website ? '<a href="' + safeUrl(l.website) + '" target="_blank" style="color:#3b82f6;">Acessar Website</a>' : 'Sem Domínio') + '</p>';
+    info += '<p><strong>📸 Insta:</strong> ' + (l.instagram ? '<a href="' + safeUrl(l.instagram) + '" target="_blank" style="color:#d946ef;">Instagram</a>' : 'N/A') + ' | <strong>📘 Face:</strong> ' + (l.facebook ? '<a href="' + safeUrl(l.facebook) + '" target="_blank" style="color:#3b82f6;">Facebook</a>' : 'N/A') + ' | <strong>💬 Whats:</strong> ' + (l.whatsapp_url ? '<a href="' + safeUrl(l.whatsapp_url) + '" target="_blank" style="color:#25d366;">WhatsApp</a>' : 'N/A') + '</p>';
 
     if (l.other_public_links && l.other_public_links.length > 0) {
         info += '<p><strong>🔗 Outros Links (' + l.other_public_links.length + '):</strong><br>';
         l.other_public_links.forEach(ol => {
-            info += `<a href="${ol}" target="_blank" style="color:#94a3b8; font-size:11px; margin-right:8px; display:inline-block; margin-bottom:5px;">${ol}</a><br>`;
+            info += '<a href="' + safeUrl(ol) + '" target="_blank" style="color:#94a3b8; font-size:11px; margin-right:8px; display:inline-block; margin-bottom:5px;">' + esc(ol) + '</a><br>';
         });
         info += '</p>';
     }
@@ -277,12 +288,12 @@ window.showDetails = async function (idx) {
         forenseHtml += '</ul><br>';
     }
     forenseHtml += '<strong>Avaliação do Google:</strong> ' + (l.rating ? l.rating + ' Estrelas (' + l.reviews + ' reviews)' : 'NENHUMA AVALIAÇÃO') + '<br>';
-    forenseHtml += '<strong>Última Postagem GMB:</strong> ' + (l.last_post ? l.last_post : '<span style="color:#ef4444">Nunca postou na aba Atualizações.</span>') + '<br><br>';
+    forenseHtml += '<strong>Última Postagem GMB:</strong> ' + (l.last_post ? esc(l.last_post) : '<span style="color:#ef4444">Nunca postou na aba Atualizações.</span>') + '<br><br>';
 
     if (l.negative_reviews && l.negative_reviews.length > 0) {
         forenseHtml += '<strong style="color:#ef4444">💣 Reclamações Encontradas (Piores Avaliações):</strong><br>';
         l.negative_reviews.forEach(nr => {
-            forenseHtml += '<blockquote style="border-left: 3px solid #ef4444; margin: 10px 0; padding-left: 10px; font-style:italic;">"' + nr + '"</blockquote>';
+            forenseHtml += '<blockquote style="border-left: 3px solid #ef4444; margin: 10px 0; padding-left: 10px; font-style:italic;">"' + esc(nr) + '"</blockquote>';
         });
     } else {
         forenseHtml += '<span style="color:#10b981">Nenhuma avaliação negativa grave identificada no topo da listagem.</span>';
@@ -291,18 +302,18 @@ window.showDetails = async function (idx) {
     forenseHtml += '</div>';
 
     if (l.concorrentes_referencia) {
-        forenseHtml += '<br><strong style="color:#f59e0b">⚔️ Referência Competitiva:</strong><br><div style="background: #0f172a; padding: 10px; border-radius: 6px; font-size: 12px; margin-top: 5px; color: #cbd5e1;">' + l.concorrentes_referencia + '</div>';
+        forenseHtml += '<br><strong style="color:#f59e0b">⚔️ Referência Competitiva:</strong><br><div style="background: #0f172a; padding: 10px; border-radius: 6px; font-size: 12px; margin-top: 5px; color: #cbd5e1;">' + esc(l.concorrentes_referencia) + '</div>';
     }
 
     const waMsgOptions = l.mensagem_whatsapp_curta || l.draft_message || '';
     if (waMsgOptions) {
-        forenseHtml += '<br><strong>📲 Sugestão de Abordagem Curta (WhatsApp/Intro):</strong><br><div style="white-space: pre-wrap; background: #0f172a; padding: 15px; border-radius: 6px; font-size: 13px; margin-top: 10px; border-left: 4px solid #25d366; font-style: italic; color: #f8fafc; font-family: monospace; line-height: 1.6;">' + waMsgOptions + '</div>';
+        forenseHtml += '<br><strong>📲 Sugestão de Abordagem Curta (WhatsApp/Intro):</strong><br><div style="white-space: pre-wrap; background: #0f172a; padding: 15px; border-radius: 6px; font-size: 13px; margin-top: 10px; border-left: 4px solid #25d366; font-style: italic; color: #f8fafc; font-family: monospace; line-height: 1.6;">' + esc(waMsgOptions) + '</div>';
     }
     if (l.mensagem_whatsapp) {
-        forenseHtml += '<br><strong>📲 Abordagem Consultiva (WhatsApp):</strong><br><div style="white-space: pre-wrap; background: #0f172a; padding: 15px; border-radius: 6px; font-size: 13px; margin-top: 10px; border-left: 4px solid #3b82f6; font-style: italic; color: #f8fafc; font-family: monospace; line-height: 1.6;">' + l.mensagem_whatsapp + '</div>';
+        forenseHtml += '<br><strong>📲 Abordagem Consultiva (WhatsApp):</strong><br><div style="white-space: pre-wrap; background: #0f172a; padding: 15px; border-radius: 6px; font-size: 13px; margin-top: 10px; border-left: 4px solid #3b82f6; font-style: italic; color: #f8fafc; font-family: monospace; line-height: 1.6;">' + esc(l.mensagem_whatsapp) + '</div>';
     }
     if (l.argumento_comercial) {
-        forenseHtml += '<br><strong style="color:#f59e0b">🎯 Argumento de Vendas (SDR):</strong><br><div style="white-space: pre-wrap; background: #0f172a; padding: 15px; border-radius: 6px; font-size: 13px; margin-top: 10px; border-left: 4px solid #f59e0b; color: #cbd5e1; font-family: monospace; line-height: 1.6;">' + l.argumento_comercial + '</div>';
+        forenseHtml += '<br><strong style="color:#f59e0b">🎯 Argumento de Vendas (SDR):</strong><br><div style="white-space: pre-wrap; background: #0f172a; padding: 15px; border-radius: 6px; font-size: 13px; margin-top: 10px; border-left: 4px solid #f59e0b; color: #cbd5e1; font-family: monospace; line-height: 1.6;">' + esc(l.argumento_comercial) + '</div>';
     }
 
     document.getElementById('m-ai-text').innerHTML = forenseHtml;
