@@ -26,6 +26,21 @@ async function generateExternalPDF(lead, niche, city) {
     const rating = lead.rating || 0;
     const reviews = lead.reviews || 0;
 
+    // --- CARREGAMENTO DE LOGOS EM BASE64 ---
+    const rootDir = path.resolve(__dirname, '..');
+    let logoBannerB64 = '';
+    let logoCircularB64 = '';
+    try {
+        const bannerPath = path.join(rootDir, 'logo-digital-prime-studio-sp.png');
+        const circularPath = path.join(rootDir, 'logo-digital-prime-studio.png');
+        if (fs.existsSync(bannerPath)) {
+            logoBannerB64 = 'data:image/png;base64,' + fs.readFileSync(bannerPath).toString('base64');
+        }
+        if (fs.existsSync(circularPath)) {
+            logoCircularB64 = 'data:image/png;base64,' + fs.readFileSync(circularPath).toString('base64');
+        }
+    } catch (e) { /* logos opcionais */ }
+
     // --- CÁLCULO DA NOTA DE SAÚDE DIGITAL ---
     // Racional: nota consultiva visual, não métrica científica.
     // Inicia em 100 e deduz por ausência de canais observáveis.
@@ -183,6 +198,7 @@ async function generateExternalPDF(lead, niche, city) {
     <body>
         <!-- CAPA -->
         <div class="cover">
+            ${logoBannerB64 ? `<div style="margin-bottom: 35px;"><img src="${logoBannerB64}" style="height: 60px; filter: drop-shadow(0 4px 12px rgba(139,92,246,0.4));" alt="Digital Prime Studio" /></div>` : ''}
             <div class="cover-badge">Diagnóstico Digital Consultivo</div>
             <h1>Análise de Presença<br>Digital para <span>${esc(empresaNome)}</span></h1>
             <p class="subtitle">Relatório baseado em dados públicos sobre visibilidade, reputação e oportunidades de crescimento online.</p>
@@ -191,7 +207,7 @@ async function generateExternalPDF(lead, niche, city) {
                 <p><strong>Setor:</strong> ${esc(niche)}</p>
                 <p><strong>Região:</strong> ${esc(city)}</p>
                 <p><strong>Data:</strong> ${dateStr}</p>
-                <p><strong>Elaborado por:</strong> Digital Prime — Ecossistema Digital Inteligente</p>
+                <p><strong>Elaborado por:</strong> Digital Prime Studio — Ecossistema Digital Inteligente</p>
             </div>
         </div>
         
@@ -298,6 +314,7 @@ async function generateExternalPDF(lead, niche, city) {
             
             <!-- CTA DIGITAL PRIME -->
             <div class="cta-box">
+                ${logoCircularB64 ? `<img src="${logoCircularB64}" style="width: 70px; height: 70px; border-radius: 50%; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" alt="Digital Prime Studio" />` : ''}
                 <h2>Quer transformar esses pontos em resultados?</h2>
                 <p>A Digital Prime Studio é especialista em presença digital para empresas locais.</p>
                 <p>Agende uma conversa gratuita e sem compromisso com o <strong>Lucas</strong>.</p>
@@ -332,7 +349,10 @@ async function generateExternalPDF(lead, niche, city) {
 
         <!-- FOOTER -->
         <div class="footer">
-            <p><strong>Digital Prime Studio</strong> — Ecossistema Digital Inteligente</p>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                ${logoCircularB64 ? `<img src="${logoCircularB64}" style="width: 32px; height: 32px; border-radius: 50%;" alt="" />` : ''}
+                <strong>Digital Prime Studio</strong> — Ecossistema Digital Inteligente
+            </div>
             <p>Este documento foi gerado em ${dateStr} e reflete os dados públicos disponíveis naquele momento.</p>
             <p>Para informações completas: <a href="https://www.digitalprimestudio.com.br" style="color: #64748b;">www.digitalprimestudio.com.br</a> | WhatsApp: <a href="https://wa.me/5513996519515" style="color: #64748b;">(13) 99651-9515</a></p>
         </div>
