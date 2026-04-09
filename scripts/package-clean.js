@@ -30,6 +30,8 @@ const EXCLUDE_PATTERNS = [
     /history_backup_/,
     /_legacy_backup/,
     /^KEYS/i,
+    /\.zip$/i,
+    /^EVIDENCIA_HOMOLOGACAO\.md$/,
 ];
 
 function shouldExclude(name) {

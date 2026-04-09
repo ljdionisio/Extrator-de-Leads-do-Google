@@ -1,7 +1,7 @@
 # Evidência de Homologação — Lead King v2.0
 
-**Commit**: `103bfbb`  
-**Data**: 08/04/2026, 22:53:00  
+**Commit**: `db2d0ae`  
+**Data**: 08/04/2026, 23:21:05  
 **Veredito**: GO DEFINITIVO  
 
 ## Resultados
@@ -77,24 +77,24 @@ Lead escolhido:
   Reclamações: 2
 
 >> Gerando PDF Externo...
-  ✅ PDF gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\diagnostico_digital_auto_mec_nica_s_o_jorge_1775699590133.pdf
+  ✅ PDF gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\diagnostico_digital_auto_mec_nica_s_o_jorge_1775701275274.pdf
 
 >> Gerando CSV Externo...
-  ✅ CSV gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\extracao_externo_oficinas_campinas_1775699591408.csv
+  ✅ CSV gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\extracao_externo_oficinas_campinas_1775701277573.csv
 
 >> Validando separação no CSV Externo...
   ✅ Separação confirmada — zero vazamentos
 
 >> Validando conteúdo do PDF Externo via source...
-  Tamanho do PDF: 898.0 KB
+  Tamanho do PDF: 1186.9 KB
   ✅ Tamanho do PDF adequado
 
 === RESULTADO DO SMOKE TEST ===
 
 Artefatos gerados:
-  📄 PDF: diagnostico_digital_auto_mec_nica_s_o_jorge_1775699590133.pdf
-  📊 CSV: extracao_externo_oficinas_campinas_1775699591408.csv
-  Tamanho PDF: 898.0 KB
+  📄 PDF: diagnostico_digital_auto_mec_nica_s_o_jorge_1775701275274.pdf
+  📊 CSV: extracao_externo_oficinas_campinas_1775701277573.csv
+  Tamanho PDF: 1186.9 KB
 
 ✅ SMOKE TEST PASSOU
    - Lead processado com sucesso
@@ -127,7 +127,6 @@ Artefatos gerados:
     📄 settings.json (0.0 KB)
   📄 index.js (6.9 KB)
   📄 iniciar_robo.bat (0.4 KB)
-  📄 LeadKing_v2.0_DISTRIBUICAO.zip (734.8 KB)
   📄 logo-digital-prime-studio-peruibe.png (189.8 KB)
   📄 logo-digital-prime-studio-sp.png (211.1 KB)
   📄 logo-digital-prime-studio.png (268.5 KB)
@@ -145,12 +144,12 @@ Artefatos gerados:
   📄 package-lock.json (7.6 KB)
   📄 package.json (1.2 KB)
   📄 README.md (1.9 KB)
-  📄 README_DISTRIBUICAO.md (1.4 KB)
+  📄 README_DISTRIBUICAO.md (1.8 KB)
   📄 README_OPERACIONAL.md (3.3 KB)
   📄 RECOMENDACOES_SITE.md (3.8 KB)
   📁 scripts/
     📄 generate-evidence.js (3.0 KB)
-    📄 package-clean.js (3.7 KB)
+    📄 package-clean.js (3.8 KB)
   📄 test-webhook.js (2.2 KB)
   📁 tests/
     📄 smoke-test-comercial.js (6.3 KB)

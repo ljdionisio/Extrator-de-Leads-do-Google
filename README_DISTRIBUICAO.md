@@ -34,10 +34,15 @@ dist_clean/
 | Comando | Descrição |
 |---|---|
 | `npm start` | Iniciar o robô |
-| `npm test` | Rodar todos os testes |
+| `npm test` | Suíte básica (UI + separação) |
+| `npm run evidence` | **Homologação completa** — roda 4 testes e gera `EVIDENCIA_HOMOLOGACAO.md` |
+| `npm run smoke` | Smoke test comercial com 1 lead real |
 | `npm run test:ui` | Teste E2E da interface |
 | `npm run test:separation` | Verificar separação interno/externo |
 | `npm run qa` | Verificação de sintaxe de todos os módulos |
+| `npm run package:clean` | Gerar pacote limpo em `dist_clean/` |
+
+> **Nota**: Para auditoria formal, use `npm run evidence`. O comando `npm test` cobre apenas UI e separação.
 
 ## Segurança
 - O pacote NÃO contém `.env` com credenciais reais
