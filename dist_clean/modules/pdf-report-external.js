@@ -299,11 +299,11 @@ async function generateExternalPDF(lead, niche, city) {
             <!-- CTA DIGITAL PRIME -->
             <div class="cta-box">
                 <h2>Quer transformar esses pontos em resultados?</h2>
-                <p>A Digital Prime Studio é especialista em presença digital para empresas locais.</p>
-                <p>Agende uma conversa gratuita e sem compromisso com o <strong>Lucas</strong>.</p>
-                <p style="font-size: 14px; opacity: 0.9;">📞 WhatsApp: <a href="https://wa.me/5513996519515?text=Ol%C3%A1%20Lucas%2C%20recebi%20o%20diagn%C3%B3stico%20digital%20e%20gostaria%20de%20conversar" style="color: white; text-decoration: underline;">(13) 99651-9515</a></p>
-                <p style="font-size: 14px; opacity: 0.9;">🌐 Site: <a href="https://www.digitalprimestudio.com.br" style="color: white; text-decoration: underline;">www.digitalprimestudio.com.br</a></p>
-                <a href="https://wa.me/5513996519515?text=Ol%C3%A1%20Lucas%2C%20recebi%20o%20diagn%C3%B3stico%20digital%20e%20gostaria%20de%20conversar" class="cta-button">Falar com o Lucas</a>
+                <p>A Digital Prime é especialista em presença digital para empresas locais.</p>
+                <p>Agende uma conversa gratuita e sem compromisso.</p>
+                <p style="font-size: 14px; opacity: 0.8;">📞 WhatsApp: (XX) XXXXX-XXXX</p>
+                <p style="font-size: 14px; opacity: 0.8;">🌐 digitalprime.com.br</p>
+                <span class="cta-button">Falar com a Digital Prime</span>
             </div>
         </div>
         
@@ -332,9 +332,9 @@ async function generateExternalPDF(lead, niche, city) {
 
         <!-- FOOTER -->
         <div class="footer">
-            <p><strong>Digital Prime Studio</strong> — Ecossistema Digital Inteligente</p>
+            <p><strong>Digital Prime</strong> — Ecossistema Digital Inteligente</p>
             <p>Este documento foi gerado em ${dateStr} e reflete os dados públicos disponíveis naquele momento.</p>
-            <p>Para informações completas: <a href="https://www.digitalprimestudio.com.br" style="color: #64748b;">www.digitalprimestudio.com.br</a> | WhatsApp: <a href="https://wa.me/5513996519515" style="color: #64748b;">(13) 99651-9515</a></p>
+            <p>Para informações completas, entre em contato: digitalprime.com.br</p>
         </div>
     </body>
     </html>

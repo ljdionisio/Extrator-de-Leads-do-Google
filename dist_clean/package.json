@@ -1,0 +1,28 @@
+{
+  "name": "extrator-leads-digital-prime",
+  "version": "2.0.0",
+  "description": "Lead King — Extrator de Leads Google Maps da Digital Prime, local-first.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test_ui.js && node tests/test-separation.js",
+    "test:ui": "node test_ui.js",
+    "test:separation": "node tests/test-separation.js",
+    "test:webhook": "node test-webhook.js",
+    "qa": "node --check index.js && node --check modules/csv-exporter.js && node --check modules/lead-scorer.js && node --check modules/local-store.js && node --check modules/company-auditor.js && node --check modules/maps-collector.js && node --check modules/pdf-exporter.js && node --check modules/pdf-report-external.js && node --check modules/message-generator.js && echo QA syntax OK",
+    "package:clean": "node scripts/package-clean.js"
+  },
+  "keywords": [
+    "lead",
+    "scraper",
+    "google-maps",
+    "digital-prime"
+  ],
+  "author": "Digital Prime",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "playwright": "^1.58.2"
+  }
+}
