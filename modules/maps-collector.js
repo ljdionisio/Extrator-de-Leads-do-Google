@@ -94,16 +94,18 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                     const auditResult = await auditCompany(mapsPage, sessionHrefs[i]);
                     if (!auditResult || !auditResult.name) continue;
 
-                    let scoreResult = { score: 0, priority: 'baixa', reasons: [] };
+                    let scoreResult = { score: 0, priority: 'baixa', reasons: [], motives_detailed: [], niche_profile: 'default' };
                     let messages = { whatsapp_curta: "", whatsapp_consultiva: "Erro", email: "", argumento_comercial: "" };
                     const wrn = auditResult.warnings || [];
 
                     try {
-                        let calc = calculateLeadScore(auditResult);
+                        let calc = calculateLeadScore(auditResult, niche.trim());
                         if (calc && typeof calc === 'object') {
                             scoreResult.score = calc.score || 0;
                             scoreResult.priority = calc.priority || 'baixa';
                             scoreResult.reasons = calc.reasons || [];
+                            scoreResult.motives_detailed = calc.motives_detailed || [];
+                            scoreResult.niche_profile = calc.niche_profile || 'default';
                         }
                     } catch (e) {
                         wrn.push('score_failed');
@@ -131,10 +133,13 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                         google_maps_url: sessionHrefs[i],
                         website: auditResult.website || '',
                         instagram: auditResult.instagram || '',
+                        instagram_source: auditResult.instagram_source || '',
                         facebook: auditResult.facebook || '',
                         whatsapp_url: auditResult.whatsapp || '',
                         other_public_links: auditResult.other_public_links || [],
                         phone: auditResult.phone || '',
+                        email: auditResult.email || '',
+                        categoria_maps: auditResult.categoria_maps || '',
                         rating: auditResult.rating || 0,
                         reviews: auditResult.reviews || 0,
                         negative_reviews: auditResult.negative_reviews || [],
@@ -142,6 +147,8 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                         score: scoreResult.score,
                         priority: scoreResult.priority,
                         reasons: scoreResult.reasons,
+                        motives_detailed: scoreResult.motives_detailed || [],
+                        niche_profile: scoreResult.niche_profile || 'default',
                         draft_message: messages.whatsapp_curta,
                         status: leadStatus,
                         warnings: wrn,
@@ -149,7 +156,7 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                         city: city.trim(),
 
                         // Expansão CRM e Inteligência Competitiva
-                        lead_id_estavel: crypto.createHash('md5').update(`${auditResult.name}-${auditResult.phone || ''}`).digest("hex"),
+                        lead_id_estavel: crypto.createHash('md5').update(`${auditResult.name}-${auditResult.phone || ''}-${sessionHrefs[i].split('?')[0]}`).digest("hex"),
                         data_captacao: new Date().toISOString(),
                         prioridade_comercial: scoreResult.priority,
                         prioridade_motivos: scoreResult.reasons,
@@ -161,10 +168,13 @@ async function runMapsCollector(niche, city, browser, dashPage, supabase, getRob
                         mensagem_email: messages.email,
                         argumento_comercial: messages.argumento_comercial,
                         status_pipeline: "Novo",
+                        status_contato: "",
+                        data_ultimo_envio: "",
+                        observacao_validacao: "",
                         responsavel: "",
                         ultima_acao: null,
                         proxima_acao: null,
-                        origem_snapshot: "Google Maps Scraper V2",
+                        origem_snapshot: "Google Maps Scraper V3",
                         duplicado_de: null,
                         enrichment_quality: (auditResult.other_public_links && auditResult.other_public_links.length > 0) ? "Enriquecido" : "Básico",
                         evidence_summary: ""

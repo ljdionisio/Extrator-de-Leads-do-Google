@@ -313,14 +313,59 @@ window.exportPDF = async function () {
     const niche = document.getElementById('i-niche') ? document.getElementById('i-niche').value : 'Nicho';
     const city = document.getElementById('i-city') ? document.getElementById('i-city').value : 'Cidade';
 
-    document.getElementById('sys-status').innerText = "> Gerando PDF Comercial, aguarde...";
+    document.getElementById('sys-status').innerText = "> Gerando PDF Interno, aguarde...";
     try {
         const filePath = await window.exportToPDF(window.leads, niche, city);
-        document.getElementById('sys-status').innerText = "> ✅ PDF Gerado com sucesso em: " + filePath;
-        if (window.logEvent) window.logEvent('SYS', `Exportou PDF com sucesso.`);
+        document.getElementById('sys-status').innerText = "> ✅ PDF Interno gerado em: " + filePath;
+        if (window.logEvent) window.logEvent('SYS', `Exportou PDF Interno com sucesso.`);
     } catch (e) {
         console.error(e);
-        document.getElementById('sys-status').innerText = "> ❌ Erro ao gerar PDF.";
+        document.getElementById('sys-status').innerText = "> ❌ Erro ao gerar PDF Interno.";
+    }
+};
+
+window.exportExternalReport = async function () {
+    if (window.leads.length === 0) return alert("⚠️ Nenhum lead disponível para gerar diagnóstico externo.");
+    const niche = document.getElementById('i-niche') ? document.getElementById('i-niche').value : 'Nicho';
+    const city = document.getElementById('i-city') ? document.getElementById('i-city').value : 'Cidade';
+
+    document.getElementById('sys-status').innerText = "> 🎯 Gerando Diagnósticos Externos para cada lead...";
+
+    let gerados = 0;
+    let erros = 0;
+
+    for (const lead of window.leads) {
+        try {
+            if (window.exportExternalPDF) {
+                await window.exportExternalPDF(lead, niche, city);
+                gerados++;
+                document.getElementById('sys-status').innerText = `> 🎯 Diagnóstico ${gerados}/${window.leads.length}: ${lead.name}`;
+            }
+        } catch (e) {
+            erros++;
+            console.error(`Erro no diagnóstico de ${lead.name}:`, e);
+        }
+    }
+
+    document.getElementById('sys-status').innerText = `> ✅ ${gerados} Diagnósticos Externos gerados! ${erros > 0 ? `(${erros} erros)` : ''}`;
+    if (window.logEvent) window.logEvent('SYS', `Exportou ${gerados} diagnósticos externos.`);
+};
+
+window.exportCSVExternal = async function () {
+    if (window.leads.length === 0) return alert("⚠️ Nenhum lead na tela para exportar.");
+    const niche = document.getElementById('i-niche') ? document.getElementById('i-niche').value : 'Nicho';
+    const city = document.getElementById('i-city') ? document.getElementById('i-city').value : 'Cidade';
+
+    document.getElementById('sys-status').innerText = "> Exportando CSV Externo (sem dados internos)...";
+    try {
+        if (window.exportToCSVExternal) {
+            const filePath = await window.exportToCSVExternal(window.leads, niche, city);
+            document.getElementById('sys-status').innerText = "> ✅ CSV Externo gerado em: " + filePath;
+            if (window.logEvent) window.logEvent('SYS', `Exportou CSV Externo (${window.leads.length} leads).`);
+        }
+    } catch (e) {
+        console.error(e);
+        document.getElementById('sys-status').innerText = "> ❌ Erro ao gerar CSV Externo.";
     }
 };
 

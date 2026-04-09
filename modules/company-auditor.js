@@ -34,16 +34,19 @@ async function auditCompany(mapsPage, url) {
     } catch (e) { warnings.push('website_failed'); }
 
     let instagram = null;
+    let instagram_source = '';
     let facebook = null;
     let whatsapp = null;
     let other_public_links = [];
+    let email = null;
+
     try {
         const links = await mapsPage.locator('a[href]').all();
         for (const link of links) {
             const hrefText = await link.getAttribute('href').catch(() => '');
             if (!hrefText) continue;
             const lowerHref = hrefText.toLowerCase();
-            if (lowerHref.includes('instagram.com')) instagram = hrefText;
+            if (lowerHref.includes('instagram.com')) { instagram = hrefText; instagram_source = 'maps'; }
             if (lowerHref.includes('facebook.com')) facebook = hrefText;
         }
 
@@ -64,7 +67,7 @@ async function auditCompany(mapsPage, url) {
                     if (processedLinks.has(lowerHref)) continue;
                     processedLinks.add(lowerHref);
 
-                    if (lowerHref.includes('instagram.com') && !instagram) instagram = href;
+                    if (lowerHref.includes('instagram.com') && !instagram) { instagram = href; instagram_source = 'website'; }
                     else if (lowerHref.includes('facebook.com') && !facebook) facebook = href;
                     else if (lowerHref.includes('linkedin.com/company') && other_public_links.length < 5) other_public_links.push(href);
                     else if ((lowerHref.includes('wa.me') || lowerHref.includes('api.whatsapp.com') || lowerHref.includes('whatsapp.com/send')) && !whatsapp) whatsapp = href;
@@ -72,6 +75,16 @@ async function auditCompany(mapsPage, url) {
                         other_public_links.push(href);
                     }
                 }
+
+                // Tentar extrair email do website
+                if (!email) {
+                    try {
+                        const bodyText = await newPage.evaluate(() => document.body.innerText);
+                        const emailMatch = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                        if (emailMatch) email = emailMatch[0];
+                    } catch (e) { /* silently ignore */ }
+                }
+
                 // Remover duplicatas finais
                 other_public_links = [...new Set(other_public_links)];
             } catch (e) {
@@ -140,8 +153,18 @@ async function auditCompany(mapsPage, url) {
         }
     } catch (e) { warnings.push('last_post_failed'); }
 
+    // Extrair categoria do GMB
+    let categoria_maps = null;
+    try {
+        categoria_maps = await mapsPage.locator('button[jsaction*="category"] span, span.DkEaL').first().innerText().catch(() => null);
+        if (!categoria_maps) {
+            categoria_maps = await mapsPage.locator('.fontBodyMedium span[jstcache]').first().innerText().catch(() => null);
+        }
+    } catch (e) { warnings.push('category_failed'); }
+
     return {
-        name, address, phone, website, instagram, facebook, whatsapp, other_public_links, rating, reviews, negative_reviews, last_post, warnings
+        name, address, phone, website, instagram, instagram_source, facebook, whatsapp,
+        other_public_links, email, categoria_maps, rating, reviews, negative_reviews, last_post, warnings
     };
 }
 

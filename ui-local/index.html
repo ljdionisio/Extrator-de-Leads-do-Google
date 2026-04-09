@@ -140,19 +140,27 @@
             <div class="content-header"
                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0;">
                 <h2 style="margin: 0; font-size: 18px; font-weight: 500;">Console Live</h2>
-                <div class="content-header-buttons">
+                <div class="content-header-buttons" style="display:flex; flex-wrap:wrap; gap:6px;">
                     <button onclick="exportPDF()"
-                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;"
-                        title="Gera o report forense executivo em formato PDF para enviar ao prospect.">📄
-                        Exportar PDF</button>
+                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer;"
+                        title="Gera o report forense interno em PDF (com score, SDR, mensagens).">📄
+                        PDF Interno</button>
+                    <button onclick="exportExternalReport()"
+                        style="background:#7c3aed; border: none; color:#fff; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:600;"
+                        title="Gera diagnóstico visual para enviar ao CLIENTE (sem score/SDR).">🎯
+                        Diagnóstico Externo</button>
                     <button onclick="exportCSV()"
-                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; margin-right: 10px;"
-                        title="Gera uma planilha limpa local para carregar em outro software.">📥
-                        Exportar .CSV</button>
+                        style="background:transparent; border: 1px solid #334155; color:#cbd5e1; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer;"
+                        title="Planilha interna completa com todos os dados.">📥
+                        CSV Interno</button>
+                    <button onclick="exportCSVExternal()"
+                        style="background:transparent; border: 1px solid #6d28d9; color:#a78bfa; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer;"
+                        title="Planilha externa sem score, prioridade ou mensagens de prospecção.">📤
+                        CSV Externo</button>
                     <button onclick="syncWebhook()"
                         style="background:#10b981; border: none; color:#fff; padding: 6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:600;"
                         title="Faz o push do lote visível para o CRM SaaS via Request HTTP.">☁️
-                        Enviar p/ Webhook</button>
+                        Webhook</button>
                 </div>
             </div>
 

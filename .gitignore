@@ -14,27 +14,16 @@ data/
 # Relatórios Expostos (Exportações)
 *.pdf
 *.csv
-# Node e NPM
-node_modules/
-npm-debug.log
-yarn-error.log
-
-# Variáveis e Ambiente Ocultos
-.env
-.env.*
-!.env.example
-
-# Banco de Dados Local Autônomo
-data/
-
-# Relatórios Expostos (Exportações)
-*.pdf
-*.csv
 *.xlsx
 
-# Arquivos de Sistema e macOS
+# Arquivos de Sistema
 .DS_Store
 Thumbs.db
 
- node_modules/
-_legacy_backup/  
+# Segurança — Nunca commitar chaves
+KEYS*.txt
+*chaves*
+*secrets*
+
+# Legado e Backups
+_legacy_backup/

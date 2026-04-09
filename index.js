@@ -38,9 +38,19 @@ async function run() {
         return await generatePDF(leads, niche, city);
     });
 
-    await dashContext.exposeFunction('exportToCSV', async (leads, niche, city) => {
+    await dashContext.exposeFunction('exportToCSV', async (leads, niche, city, mode) => {
         const { generateCSV } = require('./modules/csv-exporter.js');
-        return await generateCSV(leads, niche, city);
+        return await generateCSV(leads, niche, city, mode || 'interno');
+    });
+
+    await dashContext.exposeFunction('exportToCSVExternal', async (leads, niche, city) => {
+        const { generateCSV } = require('./modules/csv-exporter.js');
+        return await generateCSV(leads, niche, city, 'externo');
+    });
+
+    await dashContext.exposeFunction('exportExternalPDF', async (lead, niche, city) => {
+        const { generateExternalPDF } = require('./modules/pdf-report-external.js');
+        return await generateExternalPDF(lead, niche, city);
     });
 
     await dashContext.exposeFunction('clearLocalStore', () => {
@@ -88,27 +98,8 @@ async function run() {
     });
 
     await dashContext.exposeFunction('savePipelineUpdate', (leadId, newStatus) => {
-        const fs = require('fs');
-        const path = require('path');
-        const LEADS_FILE = path.join(process.cwd(), 'data', 'leads.json');
-        const HIST_FILE = path.join(process.cwd(), 'data', 'history_snapshots.json');
-        try {
-            const leads = JSON.parse(fs.readFileSync(LEADS_FILE, 'utf8'));
-            const idx = leads.findIndex(l => l.lead_id_estavel === leadId);
-            if (idx !== -1) {
-                leads[idx].status_pipeline = newStatus;
-                leads[idx].ultima_acao = new Date().toISOString();
-                fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf8');
-            }
-
-            const history = JSON.parse(fs.readFileSync(HIST_FILE, 'utf8'));
-            const histIdx = history.findIndex(l => l.lead_id_estavel === leadId);
-            if (histIdx !== -1) {
-                history[histIdx].status_pipeline = newStatus;
-                history[histIdx].ultima_acao = new Date().toISOString();
-                fs.writeFileSync(HIST_FILE, JSON.stringify(history, null, 2), 'utf8');
-            }
-        } catch (e) { }
+        const { updatePipelineStatus } = require('./modules/local-store.js');
+        updatePipelineStatus(leadId, newStatus);
     });
 
     await dashContext.exposeFunction('startEngine', async (niche, city, triggerType = 'manual') => {
