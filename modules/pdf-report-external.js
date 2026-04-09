@@ -198,7 +198,7 @@ async function generateExternalPDF(lead, niche, city) {
     <body>
         <!-- CAPA -->
         <div class="cover">
-            ${logoBannerB64 ? `<div style="margin-bottom: 35px;"><img src="${logoBannerB64}" style="height: 60px; filter: drop-shadow(0 4px 12px rgba(139,92,246,0.4));" alt="Digital Prime Studio" /></div>` : ''}
+            ${logoBannerB64 ? `<div style="text-align: center; margin-bottom: 40px;"><img src="${logoBannerB64}" style="width: 100%; max-width: 480px; border-radius: 10px; filter: drop-shadow(0 6px 20px rgba(139,92,246,0.5));" alt="Digital Prime Studio" /></div>` : ''}
             <div class="cover-badge">Diagnóstico Digital Consultivo</div>
             <h1>Análise de Presença<br>Digital para <span>${esc(empresaNome)}</span></h1>
             <p class="subtitle">Relatório baseado em dados públicos sobre visibilidade, reputação e oportunidades de crescimento online.</p>
