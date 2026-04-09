@@ -1,7 +1,7 @@
 # Evidência de Homologação — Lead King v2.0
 
-**Commit**: `d9afaf8`  
-**Data**: 08/04/2026, 23:23:06  
+**Commit**: `2d20db4`  
+**Data**: 08/04/2026, 23:58:56  
 **Veredito**: GO DEFINITIVO  
 
 ## Resultados
@@ -77,10 +77,10 @@ Lead escolhido:
   Reclamações: 2
 
 >> Gerando PDF Externo...
-  ✅ PDF gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\diagnostico_digital_auto_mec_nica_s_o_jorge_1775701394444.pdf
+  ✅ PDF gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\diagnostico_digital_auto_mec_nica_s_o_jorge_1775703544463.pdf
 
 >> Gerando CSV Externo...
-  ✅ CSV gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\extracao_externo_oficinas_campinas_1775701395499.csv
+  ✅ CSV gerado: C:\Users\lucas\Desktop\CRM Extrator Leads\extracao_externo_oficinas_campinas_1775703545664.csv
 
 >> Validando separação no CSV Externo...
   ✅ Separação confirmada — zero vazamentos
@@ -92,8 +92,8 @@ Lead escolhido:
 === RESULTADO DO SMOKE TEST ===
 
 Artefatos gerados:
-  📄 PDF: diagnostico_digital_auto_mec_nica_s_o_jorge_1775701394444.pdf
-  📊 CSV: extracao_externo_oficinas_campinas_1775701395499.csv
+  📄 PDF: diagnostico_digital_auto_mec_nica_s_o_jorge_1775703544463.pdf
+  📊 CSV: extracao_externo_oficinas_campinas_1775703545664.csv
   Tamanho PDF: 898.0 KB
 
 ✅ SMOKE TEST PASSOU
@@ -152,6 +152,7 @@ Artefatos gerados:
     📄 package-clean.js (3.8 KB)
   📄 test-webhook.js (2.2 KB)
   📁 tests/
+    📄 field-test.js (5.5 KB)
     📄 smoke-test-comercial.js (6.3 KB)
     📄 test-separation.js (4.7 KB)
   📄 test_ui.js (8.4 KB)
