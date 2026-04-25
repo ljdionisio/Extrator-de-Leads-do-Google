@@ -17,7 +17,9 @@
     "qa": "node --check index.js && node --check modules/csv-exporter.js && node --check modules/lead-scorer.js && node --check modules/local-store.js && node --check modules/company-auditor.js && node --check modules/maps-collector.js && node --check modules/pdf-exporter.js && node --check modules/pdf-report-external.js && node --check modules/message-generator.js && node --check modules/premium-report-engine.js && node --check modules/screenshots-manager.js && node --check modules/single-search.js && node --check modules/local-api-server.js && node --check modules/supabase-server.js && node --check modules/diagnosis-job-processor.js && node --check modules/search-job-processor.js && node --check modules/executor-autopilot.js && echo QA syntax OK",
     "package:clean": "node scripts/package-clean.js",
     "evidence": "node scripts/generate-evidence.js",
-    "smoke": "node tests/smoke-test-comercial.js"
+    "smoke": "node tests/smoke-test-comercial.js",
+    "cf:prepare": "node scripts/prepare-cloudflare-pwa.js",
+    "cf:deploy": "node scripts/deploy-cloudflare-pages.js"
   },
   "keywords": [
     "lead",

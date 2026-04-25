@@ -27,3 +27,6 @@ KEYS*.txt
 
 # Legado e Backups
 _legacy_backup/
+
+# Cloudflare build output
+cloudflare/public/
