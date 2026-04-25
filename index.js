@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
+const { createLocalServer, sendJson } = require('./modules/local-api-server.js');
 // Supabase Removido em favor do Local Store
 
 
@@ -174,19 +175,38 @@ async function run() {
     });
 
     // ========================================================
-    // Carrega o layout HTML do Dashboard Master
+    // Inicia API HTTP Local (serve UI e API)
     // ========================================================
-    const path = require('path');
-    const uiPath = 'file://' + path.resolve(__dirname, 'ui-local', 'index.html');
-    await dashPage.goto(uiPath);
+    const { loadLeads } = require('./modules/local-store.js');
+    const apiHandlers = {
+        'GET /api/leads': async (req, res) => {
+            sendJson(res, 200, { leads: loadLeads(), total: loadLeads().length });
+        },
+        'POST /api/search-single': async (req, res, ctx) => {
+            const { searchSingleCompany } = require('./modules/single-search.js');
+            const { name, city } = ctx.body || {};
+            if (!name || !city) return sendJson(res, 400, { error: 'name e city são obrigatórios' });
+            const results = await searchSingleCompany(name, city, browser, 5);
+            sendJson(res, 200, { candidates: results });
+        },
+    };
 
-    dashPage.on('close', () => {
+    const localApi = await createLocalServer({ port: 3939, apiHandlers, context: { browser } });
+
+    // ========================================================
+    // Carrega o layout HTML do Dashboard Master via HTTP
+    // ========================================================
+    const uiUrl = `http://localhost:${localApi.port}/`;
+    await dashPage.goto(uiUrl);
+
+    dashPage.on('close', async () => {
         console.log("👋 Painel Mestre fechado. Encerrando Robô.");
+        await localApi.close().catch(() => { });
         process.exit(0);
     });
 
     // Inicialização da interface concluída
-    console.log("✅ Sistema Sinergia inicializado no Chromium.");
+    console.log(`✅ Sistema Sinergia inicializado. UI: ${uiUrl}`);
 
     // Mantém o script vivo bloqueando o final
     await new Promise(() => { });
