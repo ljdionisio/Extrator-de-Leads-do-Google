@@ -1,5 +1,14 @@
 window.leads = [];
 
+// === PWA: Registro do Service Worker ===
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
+            .catch(err => console.warn('[PWA] Service Worker falhou:', err.message));
+    });
+}
+
 // Helper de sanitização XSS — escapa HTML em dados de scraping
 window.escapeHtml = function (str) {
     if (!str) return '';

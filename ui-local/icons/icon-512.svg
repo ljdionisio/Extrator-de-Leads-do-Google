@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#0f172a"/>
+  <rect x="16" y="16" width="480" height="480" rx="72" fill="none" stroke="#334155" stroke-width="3"/>
+  <!-- Crown / King symbol -->
+  <path d="M136 328 L136 224 L184 256 L256 184 L328 256 L376 224 L376 328 Z" fill="#8b5cf6" opacity="0.9"/>
+  <rect x="136" y="328" width="240" height="32" rx="6" fill="#8b5cf6"/>
+  <!-- Text -->
+  <text x="256" y="408" text-anchor="middle" font-family="system-ui, sans-serif" font-size="44" font-weight="800" fill="#94a3b8" letter-spacing="6">LEAD KING</text>
+  <text x="256" y="444" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#64748b" letter-spacing="4">DIGITAL PRIME</text>
+</svg>
