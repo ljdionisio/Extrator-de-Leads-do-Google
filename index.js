@@ -268,6 +268,12 @@ async function run() {
             const result = await updateDiagnosisJob(jobId, updates);
             sendJson(res, result.ok ? 200 : 500, result);
         },
+        'POST /api/jobs/process': async (req, res, ctx) => {
+            const { processQueuedDiagnosisJobs } = require('./modules/diagnosis-job-processor.js');
+            const limit = (ctx.body && ctx.body.limit) || 1;
+            const result = await processQueuedDiagnosisJobs({ limit, browser });
+            sendJson(res, 200, result);
+        },
     };
 
     const localApi = await createLocalServer({ port: 3939, apiHandlers, context: { browser } });
