@@ -328,6 +328,117 @@ async function logAppEvent(eventType, entityType, entityId, payload) {
     }
 }
 
+// =============================================================
+// FILA DE DIAGNÓSTICOS (M7D)
+// =============================================================
+
+/**
+ * Cria um job de diagnóstico na fila.
+ * @param {{ candidateId?: string, leadSnapshot: object, source?: string }} payload
+ * @returns {{ ok: boolean, jobId?: string, error?: string }}
+ */
+async function createDiagnosisJob(payload) {
+    if (!isPersistenceReady()) {
+        return { ok: false, error: 'Supabase não configurado' };
+    }
+
+    const userResult = await ensureDefaultSupabaseUser();
+    if (!userResult.ok) return { ok: false, error: `Usuário: ${userResult.error}` };
+
+    const supabase = getSupabaseAdminClient();
+
+    try {
+        const { data, error } = await supabase
+            .from('diagnosis_jobs')
+            .insert({
+                user_id: userResult.userId,
+                candidate_id: payload.candidateId || null,
+                lead_snapshot: payload.leadSnapshot || {},
+                status: 'queued',
+            })
+            .select('id')
+            .single();
+
+        if (error) {
+            console.error('[Supabase] Erro ao criar job:', error.message);
+            return { ok: false, error: error.message };
+        }
+
+        await logAppEvent('diagnosis_queued', 'diagnosis_job', data.id, {
+            candidate_id: payload.candidateId,
+            source: payload.source || 'manual',
+        });
+
+        console.log(`[Supabase] Job criado: ${data.id.substring(0, 8)}...`);
+        return { ok: true, jobId: data.id };
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Atualiza status de um job de diagnóstico.
+ * @param {string} jobId
+ * @param {{ status: string, error_message?: string, pdf_storage_path?: string, pdf_public_url?: string, diagnosis_score?: number, result?: object }} updates
+ */
+async function updateDiagnosisJob(jobId, updates) {
+    if (!isPersistenceReady()) return { ok: false, error: 'Supabase não configurado' };
+
+    const supabase = getSupabaseAdminClient();
+
+    const row = { ...updates };
+    if (updates.status === 'running') row.started_at = new Date().toISOString();
+    if (updates.status === 'succeeded' || updates.status === 'failed') row.completed_at = new Date().toISOString();
+
+    try {
+        const { error } = await supabase
+            .from('diagnosis_jobs')
+            .update(row)
+            .eq('id', jobId);
+
+        if (error) return { ok: false, error: error.message };
+
+        await logAppEvent(`diagnosis_${updates.status}`, 'diagnosis_job', jobId, {
+            score: updates.diagnosis_score,
+        });
+
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Lista jobs de diagnóstico com filtros opcionais.
+ * @param {{ status?: string, limit?: number }} opts
+ */
+async function listDiagnosisJobs(opts = {}) {
+    if (!isPersistenceReady()) return { ok: false, error: 'Supabase não configurado', jobs: [] };
+
+    const userResult = await ensureDefaultSupabaseUser();
+    if (!userResult.ok) return { ok: false, error: userResult.error, jobs: [] };
+
+    const supabase = getSupabaseAdminClient();
+
+    try {
+        let query = supabase
+            .from('diagnosis_jobs')
+            .select('id, status, lead_snapshot, diagnosis_score, created_at, started_at, completed_at, error_message, pdf_storage_path')
+            .eq('user_id', userResult.userId)
+            .order('created_at', { ascending: false })
+            .limit(opts.limit || 20);
+
+        if (opts.status) query = query.eq('status', opts.status);
+
+        const { data, error } = await query;
+
+        if (error) return { ok: false, error: error.message, jobs: [] };
+        return { ok: true, jobs: data || [] };
+    } catch (err) {
+        return { ok: false, error: err.message, jobs: [] };
+    }
+}
+
 module.exports = {
     isSupabaseConfigured,
     getSupabaseAdminClient,
@@ -336,4 +447,7 @@ module.exports = {
     ensureDefaultSupabaseUser,
     saveIndividualSearchWithCandidates,
     logAppEvent,
+    createDiagnosisJob,
+    updateDiagnosisJob,
+    listDiagnosisJobs,
 };

@@ -247,6 +247,27 @@ async function run() {
                 sendJson(res, 500, { ok: false, configured: true, error: err.message });
             }
         },
+        'POST /api/jobs': async (req, res, ctx) => {
+            const { createDiagnosisJob } = require('./modules/supabase-server.js');
+            const { candidateId, leadSnapshot, source } = ctx.body || {};
+            if (!leadSnapshot) return sendJson(res, 400, { error: 'leadSnapshot é obrigatório' });
+            const result = await createDiagnosisJob({ candidateId, leadSnapshot, source });
+            sendJson(res, result.ok ? 201 : 500, result);
+        },
+        'GET /api/jobs': async (req, res, ctx) => {
+            const { listDiagnosisJobs } = require('./modules/supabase-server.js');
+            const status = ctx.query.status || undefined;
+            const limit = parseInt(ctx.query.limit) || 20;
+            const result = await listDiagnosisJobs({ status, limit });
+            sendJson(res, 200, result);
+        },
+        'PATCH /api/jobs': async (req, res, ctx) => {
+            const { updateDiagnosisJob } = require('./modules/supabase-server.js');
+            const { jobId, ...updates } = ctx.body || {};
+            if (!jobId) return sendJson(res, 400, { error: 'jobId é obrigatório' });
+            const result = await updateDiagnosisJob(jobId, updates);
+            sendJson(res, result.ok ? 200 : 500, result);
+        },
     };
 
     const localApi = await createLocalServer({ port: 3939, apiHandlers, context: { browser } });
