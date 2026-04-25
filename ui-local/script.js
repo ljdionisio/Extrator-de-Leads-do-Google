@@ -404,12 +404,25 @@ window.runPremiumDiagnostic = async function (idx) {
         const result = await window.generatePremiumReport(lead, niche, city);
 
         if (result && result.pdfPath) {
+            const reportUrl = window.getReportFileUrl(result.pdfPath);
+            const safeLeadName = lead.name.replace(/[^a-zA-Z0-9\u00C0-\u00FF ]/g, '').trim().replace(/\s+/g, '-');
             const msg = `
                 <div style="background:#0f2a0f; border: 1px solid #10b981; border-radius:8px; padding:15px; margin-top:10px;">
                     <p style="color:#10b981; font-weight:700; margin-bottom:8px;">✅ Diagnóstico Premium Gerado!</p>
                     <p style="color:#cbd5e1; font-size:12px;">📄 <strong>PDF:</strong> ${window.escapeHtml(result.pdfPath)}</p>
                     <p style="color:#cbd5e1; font-size:12px;">📋 <strong>Evidência:</strong> ${window.escapeHtml(result.evidencePath)}</p>
                     <p style="color:#94a3b8; font-size:11px; margin-top:8px;">Screenshots e evidência salvos em data/screenshots/ e data/evidence/</p>
+                    <div style="margin-top:15px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <button onclick="window.sharePremiumReport('${result.pdfPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', '${safeLeadName}')"
+                            style="flex:1; min-width:140px; background:linear-gradient(135deg,#8b5cf6,#6d28d9); color:white; border:none; padding:14px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; min-height:48px;">
+                            📲 Compartilhar PDF
+                        </button>
+                        <a href="${reportUrl}" target="_blank" rel="noopener"
+                            style="flex:1; min-width:140px; display:flex; align-items:center; justify-content:center; background:#334155; color:#f8fafc; border:none; padding:14px; border-radius:8px; font-size:13px; font-weight:600; text-decoration:none; text-align:center; min-height:48px;">
+                            📄 Abrir PDF
+                        </a>
+                    </div>
+                    <p id="share-status-${idx}" style="font-size:11px; color:#94a3b8; margin-top:8px; display:none;"></p>
                 </div>
             `;
             if (statusDiv) statusDiv.innerHTML = msg;
@@ -822,6 +835,72 @@ window.selectCandidate = async function (idx) {
         console.error('Erro na seleção:', e);
         document.getElementById('candidate-progress').innerHTML = `<span style="color:#ef4444;">❌ Erro: ${window.escapeHtml(e.message)}</span>`;
         window.updateStatusMsg('❌ Erro na auditoria do candidato.');
+    }
+};
+
+// ==========================
+// M6A: SHARE PDF PREMIUM
+// ==========================
+
+// Gera URL HTTP para acessar PDF via API local
+window.getReportFileUrl = function (pdfPath) {
+    if (!pdfPath) return '';
+    return `/api/report-file?path=${encodeURIComponent(pdfPath)}`;
+};
+
+// Compartilhar PDF via Web Share API com fallbacks
+window.sharePremiumReport = async function (pdfPath, leadName) {
+    if (!pdfPath) {
+        alert('Não foi possível localizar o PDF gerado.');
+        return;
+    }
+
+    const reportUrl = window.getReportFileUrl(pdfPath);
+    const fullUrl = `${window.location.origin}${reportUrl}`;
+    const fileName = `diagnostico-${(leadName || 'empresa').toLowerCase().replace(/[^a-z0-9-]/g, '-')}.pdf`;
+
+    try {
+        // Tenta buscar o PDF para compartilhar como arquivo
+        const response = await fetch(reportUrl);
+        if (!response.ok) throw new Error('PDF não encontrado no servidor');
+
+        const blob = await response.blob();
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+
+        // Fallback 1: Web Share com arquivo
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                title: `Diagnóstico Premium - ${leadName || 'Empresa'}`,
+                text: 'Diagnóstico Digital Premium gerado pela Digital Prime Studio.',
+                files: [file],
+            });
+            console.log('[M6A] PDF compartilhado via Web Share (arquivo)');
+            return;
+        }
+
+        // Fallback 2: Web Share com URL (sem arquivo)
+        if (navigator.share) {
+            await navigator.share({
+                title: `Diagnóstico Premium - ${leadName || 'Empresa'}`,
+                text: 'Diagnóstico Digital Premium gerado pela Digital Prime Studio.',
+                url: fullUrl,
+            });
+            console.log('[M6A] PDF compartilhado via Web Share (URL)');
+            return;
+        }
+
+        // Fallback 3: Abrir em nova aba
+        window.open(reportUrl, '_blank');
+        console.log('[M6A] PDF aberto em nova aba (fallback)');
+
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            console.log('[M6A] Compartilhamento cancelado pelo usuário');
+            return;
+        }
+        console.warn('[M6A] Erro no compartilhamento, abrindo PDF:', err.message);
+        // Fallback final: abre em nova aba
+        window.open(reportUrl, '_blank');
     }
 };
 

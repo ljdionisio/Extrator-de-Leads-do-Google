@@ -189,6 +189,43 @@ async function run() {
             const results = await searchSingleCompany(name, city, browser, 5);
             sendJson(res, 200, { candidates: results });
         },
+        'GET /api/report-file': async (req, res, ctx) => {
+            const filePath = ctx.query.path;
+            if (!filePath) return sendJson(res, 400, { error: 'path é obrigatório' });
+
+            const resolvedPath = path.resolve(filePath);
+
+            // Somente .pdf
+            if (!resolvedPath.toLowerCase().endsWith('.pdf')) {
+                return sendJson(res, 403, { error: 'Somente arquivos PDF são permitidos' });
+            }
+
+            // Diretórios permitidos
+            const { getDesktopExportDir } = require('./modules/path-helper.js');
+            const allowedDirs = [
+                getDesktopExportDir(),
+                path.resolve(__dirname, 'data'),
+                path.resolve(__dirname, 'reports'),
+                path.resolve(__dirname, 'exports'),
+            ];
+            const isAllowed = allowedDirs.some(dir => resolvedPath.startsWith(dir));
+            if (!isAllowed) {
+                return sendJson(res, 403, { error: 'Acesso fora dos diretórios permitidos' });
+            }
+
+            // Verifica existência
+            const fs = require('fs');
+            if (!fs.existsSync(resolvedPath)) {
+                return sendJson(res, 404, { error: 'Arquivo não encontrado' });
+            }
+
+            const filename = path.basename(resolvedPath);
+            res.writeHead(200, {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `inline; filename="${filename}"`,
+            });
+            fs.createReadStream(resolvedPath).pipe(res);
+        },
     };
 
     const localApi = await createLocalServer({ port: 3939, apiHandlers, context: { browser } });
