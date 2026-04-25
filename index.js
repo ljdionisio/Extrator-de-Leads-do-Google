@@ -301,6 +301,18 @@ async function run() {
             const result = await processQueuedSearchJobs({ limit, browser });
             sendJson(res, 200, result);
         },
+        'GET /api/autopilot/status': async (req, res) => {
+            const { getAutopilotStatus } = require('./modules/executor-autopilot.js');
+            sendJson(res, 200, getAutopilotStatus());
+        },
+        'POST /api/autopilot/stop': async (req, res) => {
+            const { stopExecutorAutopilot } = require('./modules/executor-autopilot.js');
+            sendJson(res, 200, stopExecutorAutopilot());
+        },
+        'POST /api/autopilot/start': async (req, res) => {
+            const { startExecutorAutopilot } = require('./modules/executor-autopilot.js');
+            sendJson(res, 200, startExecutorAutopilot({ browser }));
+        },
     };
 
     const localApi = await createLocalServer({ port: 3939, apiHandlers, context: { browser } });
@@ -311,8 +323,13 @@ async function run() {
     const uiUrl = `http://localhost:${localApi.port}/`;
     await dashPage.goto(uiUrl);
 
+    // Iniciar autopilot de filas Supabase
+    const { startExecutorAutopilot, stopExecutorAutopilot } = require('./modules/executor-autopilot.js');
+    startExecutorAutopilot({ browser });
+
     dashPage.on('close', async () => {
         console.log("👋 Painel Mestre fechado. Encerrando Robô.");
+        stopExecutorAutopilot();
         await localApi.close().catch(() => { });
         process.exit(0);
     });
