@@ -42,4 +42,28 @@ Suportar PWA multi-dispositivo com histórico de pesquisas, fila de diagnóstico
 
 ## Status
 - **M7A:** Schema criado (somente arquivo SQL, não aplicado)
-- **Próximo:** M7B conectará a aplicação ao Supabase
+- **M7B:** Health check backend criado
+- **Próximo:** M7C conectará a aplicação ao Supabase para persistência
+
+## Validação via API (M7B)
+Após configurar `.env` com `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`:
+
+```bash
+npm start
+# Abrir: http://localhost:3939/api/supabase/status
+```
+
+Resposta esperada:
+```json
+{
+  "ok": true,
+  "configured": true,
+  "tables": { "lead_searches": "ok", ... },
+  "storage": { "diagnosis_reports": "ok", "public": false }
+}
+```
+
+> ⚠️ Se `storage.public` for `true`, o bucket deve ser corrigido para **privado** antes de prosseguir.
+
+> ⚠️ `SUPABASE_SERVICE_ROLE_KEY` é somente para backend/executor local. Front/PWA usa apenas `SUPABASE_PUBLISHABLE_KEY`.
+

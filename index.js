@@ -226,6 +226,18 @@ async function run() {
             });
             fs.createReadStream(resolvedPath).pipe(res);
         },
+        'GET /api/supabase/status': async (req, res) => {
+            const { isSupabaseConfigured, checkSupabaseHealth } = require('./modules/supabase-server.js');
+            if (!isSupabaseConfigured()) {
+                return sendJson(res, 200, { ok: false, configured: false, message: 'Supabase env not configured' });
+            }
+            try {
+                const health = await checkSupabaseHealth();
+                sendJson(res, 200, health);
+            } catch (err) {
+                sendJson(res, 500, { ok: false, configured: true, error: err.message });
+            }
+        },
     };
 
     const localApi = await createLocalServer({ port: 3939, apiHandlers, context: { browser } });
