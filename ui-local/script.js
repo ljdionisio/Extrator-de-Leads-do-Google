@@ -1,3 +1,65 @@
+// =============================================================
+// CLOUD-AWARE API LAYER
+// =============================================================
+window.DP_RUNTIME = window.DP_RUNTIME || 'local';
+window.DP_IS_CLOUD = window.DP_RUNTIME === 'cloudflare' || !window.location.hostname.includes('localhost');
+
+window.dpAccessCode = localStorage.getItem('dp_access_code') || '';
+
+window.dpApi = async function (method, path, body) {
+    const baseUrl = window.DP_IS_CLOUD ? '' : 'http://localhost:3939';
+    const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+    };
+    if (window.dpAccessCode) {
+        opts.headers['x-operator-access-code'] = window.dpAccessCode;
+    }
+    if (body && method !== 'GET') opts.body = JSON.stringify(body);
+    try {
+        const res = await fetch(baseUrl + path, opts);
+        if (res.status === 401) {
+            const code = prompt('🔐 Código de acesso do operador:');
+            if (code) {
+                localStorage.setItem('dp_access_code', code);
+                window.dpAccessCode = code;
+                return window.dpApi(method, path, body);
+            }
+            return { ok: false, error: 'Não autorizado' };
+        }
+        return await res.json();
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+};
+
+// Cloud search: criar job de pesquisa
+window.dpCloudSearch = async function (queryName, city) {
+    return window.dpApi('POST', '/api/search-jobs', { queryName, city });
+};
+
+// Cloud: listar search jobs
+window.dpCloudSearchJobs = async function (status) {
+    const params = status ? `?status=${status}` : '';
+    return window.dpApi('GET', `/api/search-jobs${params}`);
+};
+
+// Cloud: criar job de diagnóstico
+window.dpCloudDiagnosis = async function (leadSnapshot, candidateId) {
+    return window.dpApi('POST', '/api/jobs', { leadSnapshot, candidateId });
+};
+
+// Cloud: listar diagnosis jobs
+window.dpCloudDiagnosisJobs = async function (status) {
+    const params = status ? `?status=${status}` : '';
+    return window.dpApi('GET', `/api/jobs${params}`);
+};
+
+// Cloud: signed URL para PDF
+window.dpCloudPdfUrl = async function (storagePath) {
+    return window.dpApi('GET', `/api/jobs-pdf-url?path=${encodeURIComponent(storagePath)}`);
+};
+
 window.leads = [];
 
 // === PWA: Registro do Service Worker ===
