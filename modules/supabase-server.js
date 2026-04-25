@@ -550,6 +550,90 @@ async function getSignedPdfUrl(storagePath, expiresInSeconds = 3600) {
     }
 }
 
+// =============================================================
+// FILA DE PESQUISAS INDIVIDUAIS (M7G)
+// =============================================================
+
+async function createLeadSearchJob(payload) {
+    if (!isPersistenceReady()) return { ok: false, error: 'Supabase não configurado' };
+
+    const userResult = await ensureDefaultSupabaseUser();
+    if (!userResult.ok) return { ok: false, error: userResult.error };
+
+    const supabase = getSupabaseAdminClient();
+
+    try {
+        const { data, error } = await supabase
+            .from('lead_search_jobs')
+            .insert({
+                user_id: userResult.userId,
+                query_name: payload.queryName || '',
+                city: payload.city || '',
+                status: 'queued',
+            })
+            .select('id')
+            .single();
+
+        if (error) return { ok: false, error: error.message };
+
+        await logAppEvent('search_job_queued', 'lead_search_job', data.id, {
+            query_name: payload.queryName,
+            city: payload.city,
+        });
+
+        return { ok: true, jobId: data.id };
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+}
+
+async function updateLeadSearchJob(jobId, updates) {
+    if (!isPersistenceReady()) return { ok: false, error: 'Supabase não configurado' };
+
+    const supabase = getSupabaseAdminClient();
+    const row = { ...updates };
+    if (updates.status === 'running') row.started_at = new Date().toISOString();
+    if (updates.status === 'succeeded' || updates.status === 'failed') row.completed_at = new Date().toISOString();
+
+    try {
+        const { error } = await supabase
+            .from('lead_search_jobs')
+            .update(row)
+            .eq('id', jobId);
+
+        if (error) return { ok: false, error: error.message };
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+}
+
+async function listLeadSearchJobs(opts = {}) {
+    if (!isPersistenceReady()) return { ok: false, error: 'Supabase não configurado', jobs: [] };
+
+    const userResult = await ensureDefaultSupabaseUser();
+    if (!userResult.ok) return { ok: false, error: userResult.error, jobs: [] };
+
+    const supabase = getSupabaseAdminClient();
+
+    try {
+        let query = supabase
+            .from('lead_search_jobs')
+            .select('id, query_name, city, status, candidate_count, search_id, result, created_at, started_at, completed_at, error_message')
+            .eq('user_id', userResult.userId)
+            .order('created_at', { ascending: false })
+            .limit(opts.limit || 20);
+
+        if (opts.status) query = query.eq('status', opts.status);
+
+        const { data, error } = await query;
+        if (error) return { ok: false, error: error.message, jobs: [] };
+        return { ok: true, jobs: data || [] };
+    } catch (err) {
+        return { ok: false, error: err.message, jobs: [] };
+    }
+}
+
 module.exports = {
     isSupabaseConfigured,
     getSupabaseAdminClient,
@@ -563,4 +647,7 @@ module.exports = {
     listDiagnosisJobs,
     uploadDiagnosisPdfToStorage,
     getSignedPdfUrl,
+    createLeadSearchJob,
+    updateLeadSearchJob,
+    listLeadSearchJobs,
 };

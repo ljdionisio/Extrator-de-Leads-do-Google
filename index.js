@@ -281,6 +281,26 @@ async function run() {
             const result = await getSignedPdfUrl(storagePath);
             sendJson(res, result.ok ? 200 : 500, result);
         },
+        'POST /api/search-jobs': async (req, res, ctx) => {
+            const { createLeadSearchJob } = require('./modules/supabase-server.js');
+            const { queryName, city } = ctx.body || {};
+            if (!queryName) return sendJson(res, 400, { error: 'queryName é obrigatório' });
+            const result = await createLeadSearchJob({ queryName, city });
+            sendJson(res, result.ok ? 201 : 500, result);
+        },
+        'GET /api/search-jobs': async (req, res, ctx) => {
+            const { listLeadSearchJobs } = require('./modules/supabase-server.js');
+            const status = ctx.query.status || undefined;
+            const limit = parseInt(ctx.query.limit) || 20;
+            const result = await listLeadSearchJobs({ status, limit });
+            sendJson(res, 200, result);
+        },
+        'POST /api/search-jobs/process': async (req, res, ctx) => {
+            const { processQueuedSearchJobs } = require('./modules/search-job-processor.js');
+            const limit = (ctx.body && ctx.body.limit) || 1;
+            const result = await processQueuedSearchJobs({ limit, browser });
+            sendJson(res, 200, result);
+        },
     };
 
     const localApi = await createLocalServer({ port: 3939, apiHandlers, context: { browser } });

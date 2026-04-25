@@ -213,7 +213,51 @@ CREATE POLICY "app_events_insert_own" ON app_events
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- =============================================================
--- 7. STORAGE BUCKET (instrução manual)
+-- 7. TABELA: lead_search_jobs
+-- Fila de pesquisas individuais para processamento offline/PWA
+-- =============================================================
+CREATE TABLE IF NOT EXISTS lead_search_jobs (
+    id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    query_name      text        NOT NULL,
+    city            text,
+    status          text        NOT NULL DEFAULT 'queued',
+    error_message   text,
+    candidate_count integer     DEFAULT 0,
+    search_id       uuid        REFERENCES lead_searches(id) ON DELETE SET NULL,
+    result          jsonb       DEFAULT '{}'::jsonb,
+    created_at      timestamptz DEFAULT now(),
+    updated_at      timestamptz DEFAULT now(),
+    started_at      timestamptz,
+    completed_at    timestamptz,
+
+    CONSTRAINT chk_search_job_status CHECK (
+        status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_lead_search_jobs_user    ON lead_search_jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_lead_search_jobs_status  ON lead_search_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_lead_search_jobs_created ON lead_search_jobs(created_at DESC);
+
+DROP TRIGGER IF EXISTS trg_lead_search_jobs_updated ON lead_search_jobs;
+CREATE TRIGGER trg_lead_search_jobs_updated
+    BEFORE UPDATE ON lead_search_jobs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE lead_search_jobs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "lead_search_jobs_select_own" ON lead_search_jobs
+    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "lead_search_jobs_insert_own" ON lead_search_jobs
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "lead_search_jobs_update_own" ON lead_search_jobs
+    FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "lead_search_jobs_delete_own" ON lead_search_jobs
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- =============================================================
+-- 8. STORAGE BUCKET (instrução manual)
 -- =============================================================
 -- O bucket 'diagnosis-reports' deve ser criado manualmente no
 -- Supabase Dashboard → Storage → Create new bucket.
@@ -226,10 +270,5 @@ CREATE POLICY "app_events_insert_own" ON app_events
 --
 -- Acesso via signed URL no backend (service role key).
 -- Front-end NUNCA acessa storage diretamente.
---
--- Policy sugerida (aplicar no Dashboard):
---   INSERT: auth.uid() = owner_id (upload pelo backend)
---   SELECT: auth.uid() = owner_id (download via signed URL)
--- =============================================================
 
--- FIM DO SCHEMA v1.0 (M7A)
+-- FIM DO SCHEMA v1.1 (M7G)
