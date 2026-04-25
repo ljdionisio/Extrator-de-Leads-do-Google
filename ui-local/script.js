@@ -680,6 +680,26 @@ window.selectCandidate = async function (idx) {
     window.updateStatusMsg(`🔍 Auditoria individual: ${candidate.name}...`);
 
     try {
+        // === DEDUP M2: checagem por google_maps_url > name+city > fallback ===
+        const mapsUrl = candidate.google_maps_url;
+        const existingByUrl = window.leads.find(l => l.google_maps_url && l.google_maps_url.split('?')[0] === mapsUrl.split('?')[0]);
+        if (existingByUrl) {
+            const existingIdx = window.leads.indexOf(existingByUrl);
+            document.getElementById('candidate-progress').innerHTML = `
+                <span style="color:#f59e0b;">⚠️ ${window.escapeHtml(existingByUrl.name)} já está no pipeline.</span>
+                <div style="margin-top:10px;">
+                    <span style="font-size:11px; color:#94a3b8;">Abrindo detalhes do lead existente...</span>
+                </div>
+            `;
+            // Auto-open: fecha modal candidatos, abre detalhes do existente
+            setTimeout(() => {
+                document.getElementById('candidateModal').style.display = 'none';
+                window.showDetails(existingIdx);
+            }, 800);
+            window.updateStatusMsg(`ℹ️ Lead já existente no pipeline: ${existingByUrl.name}`);
+            return;
+        }
+
         // Auditoria completa do candidato selecionado
         const auditResult = await window.auditSingleCandidate(candidate.google_maps_url);
         if (!auditResult || !auditResult.name) {
@@ -687,10 +707,27 @@ window.selectCandidate = async function (idx) {
             return;
         }
 
-        // Cria lead completo no mesmo formato do maps-collector
-        const crypto = { randomUUID: () => 'single_' + Date.now() };
+        // Dedup secundária por name + city
         const niche = document.getElementById('i-single-name').value.trim();
         const city = document.getElementById('i-single-city').value.trim();
+        const existingByName = window.leads.find(l =>
+            l.name === auditResult.name && l.city === city
+        );
+        if (existingByName) {
+            const existingIdx = window.leads.indexOf(existingByName);
+            document.getElementById('candidate-progress').innerHTML = `
+                <span style="color:#f59e0b;">⚠️ ${window.escapeHtml(existingByName.name)} já está no pipeline (por nome+cidade).</span>
+            `;
+            setTimeout(() => {
+                document.getElementById('candidateModal').style.display = 'none';
+                window.showDetails(existingIdx);
+            }, 800);
+            window.updateStatusMsg(`ℹ️ Lead já existente: ${existingByName.name}`);
+            return;
+        }
+
+        // ID estável com timestamp controlado
+        const leadId = 'single_' + Date.now();
 
         const fullLead = {
             name: auditResult.name,
@@ -720,7 +757,7 @@ window.selectCandidate = async function (idx) {
             warnings: auditResult.warnings || [],
             niche: niche,
             city: city,
-            lead_id_estavel: 'single_' + Date.now(),
+            lead_id_estavel: leadId,
             data_captacao: new Date().toISOString(),
             prioridade_comercial: 'individual',
             prioridade_motivos: ['Lead selecionado manualmente'],
@@ -747,8 +784,10 @@ window.selectCandidate = async function (idx) {
         // Adiciona ao pipeline visual
         window.addLead(fullLead);
 
-        // Salva no local store
         if (window.logEvent) window.logEvent('SYS', `Lead individual adicionado: ${fullLead.name}`);
+
+        // === M2: lookup de índice correto por lead_id_estavel (pós-sort) ===
+        const realIdx = window.leads.findIndex(l => l.lead_id_estavel === leadId);
 
         document.getElementById('candidate-progress').innerHTML = `
             <span style="color:#10b981;">✅ ${window.escapeHtml(fullLead.name)} adicionado ao pipeline!</span><br>
@@ -759,19 +798,16 @@ window.selectCandidate = async function (idx) {
                 ${fullLead.whatsapp_url ? '💬' : ''}
                 ${fullLead.phone ? '📞' : ''}
             </span>
-            <div style="margin-top:10px;">
-                <button onclick="document.getElementById('candidateModal').style.display='none'; window.showDetails(window.leads.length - 1);"
-                    style="background:#8b5cf6; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:600; margin-right:8px;">
-                    📋 Ver Detalhes + Diagnóstico
-                </button>
-                <button onclick="document.getElementById('candidateModal').style.display='none';"
-                    style="background:#334155; color:#cbd5e1; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">
-                    Fechar
-                </button>
-            </div>
+            <p style="font-size:12px; color:#8b5cf6; margin-top:10px;">⏳ Abrindo detalhes e diagnóstico premium...</p>
         `;
 
-        window.updateStatusMsg(`✅ Lead individual adicionado: ${fullLead.name}`);
+        // === M2: auto-close candidatos → auto-open detalhes com Premium ===
+        setTimeout(() => {
+            document.getElementById('candidateModal').style.display = 'none';
+            window.showDetails(realIdx >= 0 ? realIdx : window.leads.length - 1);
+        }, 1000);
+
+        window.updateStatusMsg(`✅ Lead individual: ${fullLead.name} — abrindo diagnóstico...`);
 
     } catch (e) {
         console.error('Erro na seleção:', e);
