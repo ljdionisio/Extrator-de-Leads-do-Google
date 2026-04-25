@@ -317,6 +317,21 @@ window.showDetails = async function (idx) {
     }
 
     document.getElementById('m-ai-text').innerHTML = forenseHtml;
+
+    // --- BOTÃO DIAGNÓSTICO PREMIUM ---
+    const premiumDiv = document.createElement('div');
+    premiumDiv.style.cssText = 'margin-top: 25px; padding-top: 20px; border-top: 1px solid #334155;';
+    premiumDiv.innerHTML = `
+        <button id="btn-premium-${idx}" onclick="window.runPremiumDiagnostic(${idx})"
+            style="width:100%; background: linear-gradient(135deg, #8b5cf6, #6d28d9); color:white; border:none; padding:14px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:0.5px;">
+            🔬 DIAGNÓSTICO PREMIUM (Evidência Visual)
+        </button>
+        <p style="font-size:11px; color:#94a3b8; margin-top:8px; text-align:center;">
+            Gera relatório aprofundado com screenshots, evidência e PDF premium para este lead.
+        </p>
+        <div id="premium-status-${idx}" style="margin-top:10px; font-size:12px; color:#94a3b8; display:none;"></div>
+    `;
+    document.getElementById('m-ai-text').appendChild(premiumDiv);
 };
 
 window.exportPDF = async function () {
@@ -360,6 +375,48 @@ window.exportExternalReport = async function () {
 
     document.getElementById('sys-status').innerText = `> ✅ ${gerados} Diagnósticos Externos gerados! ${erros > 0 ? `(${erros} erros)` : ''}`;
     if (window.logEvent) window.logEvent('SYS', `Exportou ${gerados} diagnósticos externos.`);
+};
+
+window.runPremiumDiagnostic = async function (idx) {
+    const lead = window.leads[idx];
+    if (!lead) return alert('Lead não encontrado.');
+
+    const niche = document.getElementById('i-niche') ? document.getElementById('i-niche').value : 'Nicho';
+    const city = document.getElementById('i-city') ? document.getElementById('i-city').value : 'Cidade';
+
+    const btn = document.getElementById(`btn-premium-${idx}`);
+    const statusDiv = document.getElementById(`premium-status-${idx}`);
+
+    if (btn) { btn.disabled = true; btn.innerText = '⏳ Gerando Diagnóstico Premium...'; btn.style.opacity = '0.6'; }
+    if (statusDiv) { statusDiv.style.display = 'block'; statusDiv.innerHTML = '⏳ Visitando canais públicos e capturando evidências... Isso pode levar até 1 minuto.'; }
+    document.getElementById('sys-status').innerText = `> 🔬 Diagnóstico Premium em andamento: ${lead.name}...`;
+
+    try {
+        const result = await window.generatePremiumReport(lead, niche, city);
+
+        if (result && result.pdfPath) {
+            const msg = `
+                <div style="background:#0f2a0f; border: 1px solid #10b981; border-radius:8px; padding:15px; margin-top:10px;">
+                    <p style="color:#10b981; font-weight:700; margin-bottom:8px;">✅ Diagnóstico Premium Gerado!</p>
+                    <p style="color:#cbd5e1; font-size:12px;">📄 <strong>PDF:</strong> ${window.escapeHtml(result.pdfPath)}</p>
+                    <p style="color:#cbd5e1; font-size:12px;">📋 <strong>Evidência:</strong> ${window.escapeHtml(result.evidencePath)}</p>
+                    <p style="color:#94a3b8; font-size:11px; margin-top:8px;">Screenshots e evidência salvos em data/screenshots/ e data/evidence/</p>
+                </div>
+            `;
+            if (statusDiv) statusDiv.innerHTML = msg;
+            document.getElementById('sys-status').innerText = `> ✅ Diagnóstico Premium gerado para: ${lead.name}`;
+            if (window.logEvent) window.logEvent('SYS', `Diagnóstico Premium gerado: ${lead.name} → ${result.pdfPath}`);
+        } else {
+            if (statusDiv) statusDiv.innerHTML = '<span style="color:#ef4444;">❌ Diagnóstico retornou vazio.</span>';
+            document.getElementById('sys-status').innerText = '> ❌ Erro no Diagnóstico Premium.';
+        }
+    } catch (e) {
+        console.error('Premium error:', e);
+        if (statusDiv) statusDiv.innerHTML = `<span style="color:#ef4444;">❌ Erro: ${window.escapeHtml(e.message || 'Falha desconhecida')}</span>`;
+        document.getElementById('sys-status').innerText = '> ❌ Erro ao gerar Diagnóstico Premium.';
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '🔬 DIAGNÓSTICO PREMIUM (Evidência Visual)'; btn.style.opacity = '1'; }
+    }
 };
 
 window.exportCSVExternal = async function () {
@@ -522,3 +579,204 @@ window.toggleCron = function () {
         }, mins * 60 * 1000);
     }
 }
+
+// ==========================
+// PESQUISA INDIVIDUAL (M1)
+// ==========================
+window.singleSearchCandidates = [];
+
+window.singleSearch = async function () {
+    const name = document.getElementById('i-single-name').value.trim();
+    const city = document.getElementById('i-single-city').value.trim();
+
+    if (!name) return alert("⚠️ Informe o nome da empresa.");
+    if (!city) return alert("⚠️ Informe a cidade.");
+
+    const btn = document.getElementById('btn-single-search');
+    const statusDiv = document.getElementById('single-status');
+    btn.disabled = true;
+    btn.innerText = '⏳ Buscando...';
+    statusDiv.style.display = 'block';
+    statusDiv.innerText = 'Pesquisando no Google Maps...';
+    window.updateStatusMsg(`🔍 Pesquisa individual: "${name}" em "${city}"...`);
+
+    try {
+        const candidates = await window.searchSingle(name, city);
+        window.singleSearchCandidates = candidates;
+
+        if (!candidates || candidates.length === 0) {
+            statusDiv.innerHTML = '<span style="color:#ef4444;">❌ Nenhum candidato encontrado.</span>';
+            window.updateStatusMsg('❌ Pesquisa individual: nenhum resultado.');
+            return;
+        }
+
+        statusDiv.innerHTML = `<span style="color:#10b981;">✅ ${candidates.length} candidato(s). Selecione abaixo.</span>`;
+        window.updateStatusMsg(`✅ ${candidates.length} candidato(s) encontrado(s). Selecione o correto.`);
+        window.renderCandidates(candidates);
+
+    } catch (e) {
+        console.error('Erro na pesquisa individual:', e);
+        statusDiv.innerHTML = `<span style="color:#ef4444;">❌ Erro: ${window.escapeHtml(e.message)}</span>`;
+        window.updateStatusMsg('❌ Erro na pesquisa individual.');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = '🔍 BUSCAR EMPRESA';
+    }
+};
+
+window.renderCandidates = function (candidates) {
+    const list = document.getElementById('candidate-list');
+    const modal = document.getElementById('candidateModal');
+    const esc = window.escapeHtml;
+
+    list.innerHTML = candidates.map((c, i) => `
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:15px; cursor:pointer; transition: border-color 0.2s;"
+             onmouseover="this.style.borderColor='#8b5cf6'"
+             onmouseout="this.style.borderColor='#334155'"
+             onclick="window.selectCandidate(${i})">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong style="color:#f8fafc; font-size:15px;">${esc(c.name)}</strong>
+                    ${c.category ? `<span style="background:#334155; color:#94a3b8; padding:2px 8px; border-radius:10px; font-size:10px; margin-left:8px;">${esc(c.category)}</span>` : ''}
+                </div>
+                <div style="text-align:right;">
+                    <span style="color:#f59e0b; font-size:14px;">${c.rating > 0 ? c.rating + '⭐' : 'Sem nota'}</span>
+                    <span style="color:#94a3b8; font-size:11px; display:block;">${c.reviews > 0 ? c.reviews + ' reviews' : ''}</span>
+                </div>
+            </div>
+            <div style="margin-top:8px; color:#94a3b8; font-size:12px;">
+                ${c.address ? '📍 ' + esc(c.address) : ''}
+                ${c.phone ? ' | 📞 ' + esc(c.phone) : ''}
+            </div>
+        </div>
+    `).join('');
+
+    modal.style.display = 'block';
+};
+
+window.selectCandidate = async function (idx) {
+    const candidate = window.singleSearchCandidates[idx];
+    if (!candidate) return alert('Candidato não encontrado.');
+
+    const list = document.getElementById('candidate-list');
+    const actionDiv = document.getElementById('candidate-action');
+
+    // Highlight selecionado
+    const cards = list.querySelectorAll('div[onclick]');
+    cards.forEach((c, i) => {
+        c.style.borderColor = i === idx ? '#8b5cf6' : '#334155';
+        c.style.opacity = i === idx ? '1' : '0.5';
+    });
+
+    actionDiv.style.display = 'block';
+    actionDiv.innerHTML = `
+        <div style="background:#0f2a0f; border:1px solid #10b981; border-radius:8px; padding:15px;">
+            <p style="color:#10b981; font-weight:700; margin-bottom:8px;">✅ Selecionado: ${window.escapeHtml(candidate.name)}</p>
+            <p style="color:#94a3b8; font-size:12px; margin-bottom:10px;">Auditando empresa completa e adicionando ao pipeline...</p>
+            <div id="candidate-progress" style="color:#94a3b8; font-size:11px;">⏳ Realizando auditoria forense...</div>
+        </div>
+    `;
+
+    window.updateStatusMsg(`🔍 Auditoria individual: ${candidate.name}...`);
+
+    try {
+        // Auditoria completa do candidato selecionado
+        const auditResult = await window.auditSingleCandidate(candidate.google_maps_url);
+        if (!auditResult || !auditResult.name) {
+            document.getElementById('candidate-progress').innerHTML = '<span style="color:#ef4444;">❌ Falha na auditoria. Tente outro candidato.</span>';
+            return;
+        }
+
+        // Cria lead completo no mesmo formato do maps-collector
+        const crypto = { randomUUID: () => 'single_' + Date.now() };
+        const niche = document.getElementById('i-single-name').value.trim();
+        const city = document.getElementById('i-single-city').value.trim();
+
+        const fullLead = {
+            name: auditResult.name,
+            address: auditResult.address ? auditResult.address.split('-')[0].trim() : '',
+            source_search_url: `Pesquisa individual: ${niche} em ${city}`,
+            google_maps_url: candidate.google_maps_url,
+            website: auditResult.website || '',
+            instagram: auditResult.instagram || '',
+            instagram_source: auditResult.instagram_source || '',
+            facebook: auditResult.facebook || '',
+            whatsapp_url: auditResult.whatsapp || '',
+            other_public_links: auditResult.other_public_links || [],
+            phone: auditResult.phone || '',
+            email: auditResult.email || '',
+            categoria_maps: auditResult.categoria_maps || '',
+            rating: auditResult.rating || 0,
+            reviews: auditResult.reviews || 0,
+            negative_reviews: auditResult.negative_reviews || [],
+            last_post: auditResult.last_post || null,
+            score: 0,
+            priority: 'individual',
+            reasons: ['Pesquisa individual — lead selecionado manualmente'],
+            motives_detailed: [],
+            niche_profile: 'individual',
+            draft_message: '',
+            status: 'success',
+            warnings: auditResult.warnings || [],
+            niche: niche,
+            city: city,
+            lead_id_estavel: 'single_' + Date.now(),
+            data_captacao: new Date().toISOString(),
+            prioridade_comercial: 'individual',
+            prioridade_motivos: ['Lead selecionado manualmente'],
+            resumo_executivo: '',
+            concorrentes_referencia: '',
+            oferta_recomendada: '',
+            mensagem_whatsapp_curta: '',
+            mensagem_whatsapp: '',
+            mensagem_email: '',
+            argumento_comercial: '',
+            status_pipeline: 'Novo',
+            status_contato: '',
+            data_ultimo_envio: '',
+            observacao_validacao: '',
+            responsavel: '',
+            ultima_acao: null,
+            proxima_acao: null,
+            origem_snapshot: 'Pesquisa Individual V1',
+            duplicado_de: null,
+            enrichment_quality: (auditResult.other_public_links && auditResult.other_public_links.length > 0) ? 'Enriquecido' : 'Básico',
+            evidence_summary: ''
+        };
+
+        // Adiciona ao pipeline visual
+        window.addLead(fullLead);
+
+        // Salva no local store
+        if (window.logEvent) window.logEvent('SYS', `Lead individual adicionado: ${fullLead.name}`);
+
+        document.getElementById('candidate-progress').innerHTML = `
+            <span style="color:#10b981;">✅ ${window.escapeHtml(fullLead.name)} adicionado ao pipeline!</span><br>
+            <span style="font-size:11px; color:#94a3b8;">Canais: 
+                ${fullLead.website ? '🌐' : ''}
+                ${fullLead.instagram ? '📸' : ''}
+                ${fullLead.facebook ? '📘' : ''}
+                ${fullLead.whatsapp_url ? '💬' : ''}
+                ${fullLead.phone ? '📞' : ''}
+            </span>
+            <div style="margin-top:10px;">
+                <button onclick="document.getElementById('candidateModal').style.display='none'; window.showDetails(window.leads.length - 1);"
+                    style="background:#8b5cf6; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:600; margin-right:8px;">
+                    📋 Ver Detalhes + Diagnóstico
+                </button>
+                <button onclick="document.getElementById('candidateModal').style.display='none';"
+                    style="background:#334155; color:#cbd5e1; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">
+                    Fechar
+                </button>
+            </div>
+        `;
+
+        window.updateStatusMsg(`✅ Lead individual adicionado: ${fullLead.name}`);
+
+    } catch (e) {
+        console.error('Erro na seleção:', e);
+        document.getElementById('candidate-progress').innerHTML = `<span style="color:#ef4444;">❌ Erro: ${window.escapeHtml(e.message)}</span>`;
+        window.updateStatusMsg('❌ Erro na auditoria do candidato.');
+    }
+};
+

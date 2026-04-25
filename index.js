@@ -53,6 +53,28 @@ async function run() {
         return await generateExternalPDF(lead, niche, city);
     });
 
+    await dashContext.exposeFunction('generatePremiumReport', async (lead, niche, city) => {
+        const { generatePremiumReport } = require('./modules/premium-report-engine.js');
+        return await generatePremiumReport(lead, browser, niche, city);
+    });
+
+    // === PESQUISA INDIVIDUAL (M1) ===
+    await dashContext.exposeFunction('searchSingle', async (companyName, city) => {
+        const { searchSingleCompany } = require('./modules/single-search.js');
+        return await searchSingleCompany(companyName, city, browser, 5);
+    });
+
+    await dashContext.exposeFunction('auditSingleCandidate', async (candidateUrl) => {
+        const ctx = await browser.newContext({ viewport: { width: 900, height: 800 }, locale: 'pt-BR' });
+        const pg = await ctx.newPage();
+        try {
+            const { auditCompany } = require('./modules/company-auditor.js');
+            return await auditCompany(pg, candidateUrl);
+        } finally {
+            await ctx.close().catch(() => { });
+        }
+    });
+
     await dashContext.exposeFunction('clearLocalStore', () => {
         const { clearLeadsFile } = require('./modules/local-store.js');
         clearLeadsFile();
