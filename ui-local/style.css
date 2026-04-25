@@ -62,7 +62,29 @@ tr.lead-row:hover { background: #0f172a; cursor: pointer; border-left: 3px solid
 .progress-container { width: 100%; background: #334155; height: 6px; border-radius: 3px; overflow: hidden; margin: 15px 0; }
 .progress-bar { width: 0%; height: 100%; background: #8b5cf6; border-radius: 3px; transition: width 0.5s ease; box-shadow: 0 0 10px #8b5cf6; }
 
-/* Responsive adjustments */
+/* Mobile toggle button - hidden on desktop */
+.mobile-toggle {
+    display: none;
+    width: 100%;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, border-color 0.2s;
+    order: -1;
+}
+.mobile-toggle:hover { background: #334155; }
+.mobile-toggle.active { background: #8b5cf6; color: white; border-color: #8b5cf6; }
+
+/* ============================================== */
+/* Responsive: Tablet (≤1024px)                   */
+/* ============================================== */
 @media (max-width: 1024px) {
     .master-layout { flex-direction: column; }
     .sidebar { width: 100%; position: static; max-height: none; height: auto; }
@@ -70,14 +92,162 @@ tr.lead-row:hover { background: #0f172a; cursor: pointer; border-left: 3px solid
     .table-wrapper { height: 500px; }
 }
 
+/* ============================================== */
+/* Responsive: Mobile (≤768px)                    */
+/* Linear Precision: limpo, funcional, sem neon   */
+/* ============================================== */
 @media (max-width: 768px) {
-    body { padding: 10px; }
-    .master-layout { gap: 15px; }
-    .header-title { font-size: 20px; }
-    .table-wrapper { height: 400px; }
-    .modal-content { padding: 20px; margin: 10px auto; }
-    .close-btn { top: 10px; right: 15px; }
-    .content-header { flex-direction: column; gap: 10px; align-items: flex-start; }
-    .content-header-buttons { width: 100%; display: flex; gap: 10px; flex-wrap: wrap; }
-    .content-header button { flex: 1; padding: 10px; font-size: 11px; margin-right: 0 !important; }
+    body { padding: 8px; font-size: 14px; }
+    .master-layout { gap: 10px; flex-direction: column; }
+
+    /* --- MOBILE TOGGLE --- */
+    .mobile-toggle { display: block; }
+
+    /* --- SIDEBAR: collapsível no mobile --- */
+    .sidebar {
+        width: 100%;
+        position: static;
+        max-height: none;
+        display: none;
+        border-radius: 8px;
+    }
+    .sidebar.sidebar-open { display: block; }
+
+    .header-title { font-size: 18px; margin-bottom: 15px; }
+
+    /* --- FORM: inputs & labels touch-friendly --- */
+    .form-group { margin-bottom: 12px; }
+    .form-group label { font-size: 11px; margin-bottom: 4px; }
+    .form-group input,
+    .form-group select {
+        padding: 14px 12px;
+        font-size: 16px; /* Evita zoom automático no iOS */
+        border-radius: 8px;
+    }
+
+    /* --- BOTÕES: área mínima 48px para toque --- */
+    .master-btn {
+        padding: 16px;
+        font-size: 15px;
+        border-radius: 8px;
+        min-height: 48px;
+    }
+
+    /* --- CONTENT AREA --- */
+    .content { height: auto; display: block; }
+
+    .content-header {
+        flex-direction: column !important;
+        gap: 8px !important;
+        align-items: stretch !important;
+    }
+    .content-header h2 { font-size: 16px; }
+    .content-header-buttons {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px !important;
+    }
+    .content-header-buttons button {
+        padding: 12px 8px !important;
+        font-size: 11px !important;
+        border-radius: 6px !important;
+        min-height: 44px;
+        white-space: nowrap;
+    }
+
+    /* --- STATUS BAR --- */
+    #sys-status {
+        font-size: 12px;
+        padding: 10px;
+        word-break: break-word;
+        line-height: 1.4;
+    }
+
+    /* --- TABELA: adaptada para mobile --- */
+    .table-wrapper {
+        height: auto;
+        max-height: 50vh;
+        border-radius: 8px;
+    }
+    table { min-width: 0; font-size: 12px; }
+    th, td { padding: 10px 8px; }
+    th { font-size: 10px; letter-spacing: 0.5px; }
+    tr.lead-row:hover { border-left: 2px solid #8b5cf6; }
+
+    /* Esconde coluna de score no mobile para caber */
+    table th:first-child,
+    table td:first-child {
+        display: none;
+    }
+
+    /* --- MODAIS: full-width, scroll seguro --- */
+    .modal { padding: 8px; }
+    .modal-content {
+        max-width: 100%;
+        width: 100%;
+        margin: 8px auto;
+        padding: 16px;
+        border-radius: 10px;
+        max-height: calc(100vh - 16px);
+        overflow-y: auto;
+    }
+    .close-btn {
+        top: 8px;
+        right: 12px;
+        font-size: 32px;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .ai-box { padding: 14px; margin-top: 15px; }
+    .ai-box h3 { font-size: 14px; }
+
+    /* --- SELECTS inline (filtros) --- */
+    select {
+        padding: 12px !important;
+        font-size: 14px !important;
+        min-height: 44px;
+    }
+
+    /* --- SIDEBAR SECTIONS spacing --- */
+    .sidebar h2 { font-size: 13px; margin-top: 20px !important; margin-bottom: 10px !important; }
+    .sidebar hr { margin: 15px 0; }
+
+    /* --- OBSERVABILITY / LOGS --- */
+    #obs-last-run { font-size: 11px; }
+    #obs-events { height: 120px !important; font-size: 9px !important; }
+
+    /* --- CRON row --- */
+    .sidebar .form-group[style*="display:flex"] {
+        flex-direction: row !important;
+    }
+
+    /* --- WEBHOOK row --- */
+    .sidebar div[style*="display: flex"][style*="gap: 8px"] {
+        flex-direction: column;
+    }
 }
+
+/* ============================================== */
+/* Extra small devices (≤390px)                   */
+/* ============================================== */
+@media (max-width: 390px) {
+    body { padding: 4px; }
+    .master-layout { gap: 6px; }
+    .mobile-toggle { padding: 12px; font-size: 14px; }
+    .sidebar { padding: 14px; }
+    .header-title { font-size: 16px; }
+    .master-btn { padding: 14px; font-size: 14px; }
+    .modal-content { padding: 12px; margin: 4px; }
+    .content-header-buttons {
+        grid-template-columns: 1fr !important;
+    }
+    .content-header-buttons button {
+        font-size: 12px !important;
+        padding: 14px 8px !important;
+    }
+}
+
