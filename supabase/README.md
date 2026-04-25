@@ -41,9 +41,10 @@ Suportar PWA multi-dispositivo com histórico de pesquisas, fila de diagnóstico
 5. Verificar RLS nas tabelas
 
 ## Status
-- **M7A:** Schema criado (somente arquivo SQL, não aplicado)
+- **M7A:** Schema criado (somente arquivo SQL)
 - **M7B:** Health check backend criado
-- **Próximo:** M7C conectará a aplicação ao Supabase para persistência
+- **M7C:** Persistência de pesquisas e candidatos ativa
+- **Próximo:** M8 deploy Cloudflare Pages + Workers
 
 ## Validação via API (M7B)
 Após configurar `.env` com `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`:

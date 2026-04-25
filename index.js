@@ -188,6 +188,15 @@ async function run() {
             if (!name || !city) return sendJson(res, 400, { error: 'name e city são obrigatórios' });
             const results = await searchSingleCompany(name, city, browser, 5);
             sendJson(res, 200, { candidates: results });
+
+            // Persistir no Supabase (fire-and-forget, não bloqueia resposta)
+            const { saveIndividualSearchWithCandidates } = require('./modules/supabase-server.js');
+            saveIndividualSearchWithCandidates({
+                queryName: name,
+                city,
+                candidates: results || [],
+                rawQuery: { name, city, maxResults: 5 },
+            }).catch(err => console.warn('[M7C] Persistência falhou:', err.message));
         },
         'GET /api/report-file': async (req, res, ctx) => {
             const filePath = ctx.query.path;
