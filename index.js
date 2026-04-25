@@ -274,6 +274,13 @@ async function run() {
             const result = await processQueuedDiagnosisJobs({ limit, browser });
             sendJson(res, 200, result);
         },
+        'GET /api/jobs/pdf-url': async (req, res, ctx) => {
+            const { getSignedPdfUrl } = require('./modules/supabase-server.js');
+            const storagePath = ctx.query.path;
+            if (!storagePath) return sendJson(res, 400, { error: 'path é obrigatório' });
+            const result = await getSignedPdfUrl(storagePath);
+            sendJson(res, result.ok ? 200 : 500, result);
+        },
     };
 
     const localApi = await createLocalServer({ port: 3939, apiHandlers, context: { browser } });

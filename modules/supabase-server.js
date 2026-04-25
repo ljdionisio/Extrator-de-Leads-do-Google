@@ -439,6 +439,117 @@ async function listDiagnosisJobs(opts = {}) {
     }
 }
 
+// =============================================================
+// STORAGE: UPLOAD + SIGNED URL (M7F)
+// =============================================================
+
+/**
+ * Upload de PDF local para Supabase Storage privado.
+ * Registra em diagnosis_reports e atualiza diagnosis_jobs.
+ * @param {{ jobId: string, candidateId?: string, localPdfPath: string, leadName?: string, city?: string }} payload
+ * @returns {{ ok: boolean, storagePath?: string, reportId?: string, error?: string }}
+ */
+async function uploadDiagnosisPdfToStorage(payload) {
+    if (!isPersistenceReady()) return { ok: false, error: 'Supabase não configurado' };
+
+    const fs = require('fs');
+    const path = require('path');
+
+    if (!payload.localPdfPath || !fs.existsSync(payload.localPdfPath)) {
+        return { ok: false, error: 'PDF local não encontrado' };
+    }
+
+    const userResult = await ensureDefaultSupabaseUser();
+    if (!userResult.ok) return { ok: false, error: userResult.error };
+
+    const supabase = getSupabaseAdminClient();
+    const fileName = path.basename(payload.localPdfPath);
+    const storagePath = `${userResult.userId}/${Date.now()}-${fileName}`;
+    const fileBuffer = fs.readFileSync(payload.localPdfPath);
+    const fileSize = fileBuffer.length;
+
+    try {
+        // 1. Upload para bucket privado
+        const { error: uploadErr } = await supabase.storage
+            .from('diagnosis-reports')
+            .upload(storagePath, fileBuffer, {
+                contentType: 'application/pdf',
+                upsert: false,
+            });
+
+        if (uploadErr) {
+            console.error('[Storage] Upload falhou:', uploadErr.message);
+            return { ok: false, error: uploadErr.message };
+        }
+
+        // 2. Registrar em diagnosis_reports
+        const { data: report, error: reportErr } = await supabase
+            .from('diagnosis_reports')
+            .insert({
+                user_id: userResult.userId,
+                job_id: payload.jobId || null,
+                candidate_id: payload.candidateId || null,
+                bucket: 'diagnosis-reports',
+                storage_path: storagePath,
+                file_name: fileName,
+                file_size: fileSize,
+                mime_type: 'application/pdf',
+                lead_name: payload.leadName || null,
+                city: payload.city || null,
+            })
+            .select('id')
+            .single();
+
+        if (reportErr) {
+            console.warn('[Storage] Registro diagnosis_reports falhou:', reportErr.message);
+        }
+
+        // 3. Atualizar job com storage path
+        if (payload.jobId) {
+            await updateDiagnosisJob(payload.jobId, {
+                pdf_storage_path: storagePath,
+            });
+        }
+
+        await logAppEvent('pdf_uploaded', 'diagnosis_report', report?.id, {
+            job_id: payload.jobId,
+            file_name: fileName,
+            file_size: fileSize,
+        });
+
+        console.log(`[Storage] PDF enviado: ${storagePath.substring(0, 20)}...`);
+        return { ok: true, storagePath, reportId: report?.id };
+
+    } catch (err) {
+        console.error('[Storage] Erro inesperado:', err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Gera signed URL temporária para download de PDF.
+ * @param {string} storagePath - Caminho no bucket
+ * @param {number} expiresInSeconds - Validade (padrão: 3600 = 1h)
+ * @returns {{ ok: boolean, signedUrl?: string, error?: string }}
+ */
+async function getSignedPdfUrl(storagePath, expiresInSeconds = 3600) {
+    if (!isPersistenceReady()) return { ok: false, error: 'Supabase não configurado' };
+    if (!storagePath) return { ok: false, error: 'storagePath ausente' };
+
+    const supabase = getSupabaseAdminClient();
+
+    try {
+        const { data, error } = await supabase.storage
+            .from('diagnosis-reports')
+            .createSignedUrl(storagePath, expiresInSeconds);
+
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, signedUrl: data.signedUrl };
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+}
+
 module.exports = {
     isSupabaseConfigured,
     getSupabaseAdminClient,
@@ -450,4 +561,6 @@ module.exports = {
     createDiagnosisJob,
     updateDiagnosisJob,
     listDiagnosisJobs,
+    uploadDiagnosisPdfToStorage,
+    getSignedPdfUrl,
 };

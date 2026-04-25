@@ -5,7 +5,7 @@
  * Requer instância de browser Playwright.
  */
 
-const { updateDiagnosisJob, listDiagnosisJobs } = require('./supabase-server.js');
+const { updateDiagnosisJob, listDiagnosisJobs, uploadDiagnosisPdfToStorage } = require('./supabase-server.js');
 const { generatePremiumReport } = require('./premium-report-engine.js');
 
 /**
@@ -58,13 +58,32 @@ async function processDiagnosisJob(job, browser) {
         // 3. Rodar diagnóstico premium
         const result = await generatePremiumReport(lead, browser, niche, city);
 
-        // 4. Atualizar como succeeded
+        // 4. Upload PDF para Storage (fire-and-forget parcial)
+        let storagePath = null;
+        if (result.pdfPath) {
+            const uploadResult = await uploadDiagnosisPdfToStorage({
+                jobId,
+                candidateId: job.candidate_id || null,
+                localPdfPath: result.pdfPath,
+                leadName: lead.name,
+                city,
+            });
+            if (uploadResult.ok) {
+                storagePath = uploadResult.storagePath;
+                console.log(`[JobProcessor] PDF enviado ao Storage.`);
+            } else {
+                console.warn(`[JobProcessor] Upload falhou: ${uploadResult.error}`);
+            }
+        }
+
+        // 5. Atualizar como succeeded
         await updateDiagnosisJob(jobId, {
             status: 'succeeded',
             diagnosis_score: result.evidence?.achados?.length || 0,
             result: {
                 localPdfPath: result.pdfPath || null,
                 pdfFileName: result.pdfPath ? require('path').basename(result.pdfPath) : null,
+                storagePath: storagePath || null,
                 evidencePath: result.evidencePath || null,
                 achadosCount: result.evidence?.achados?.length || 0,
                 fontesCount: result.evidence?.fontes?.length || 0,
@@ -73,7 +92,7 @@ async function processDiagnosisJob(job, browser) {
         });
 
         console.log(`[JobProcessor] ✅ Concluído: ${lead.name}`);
-        return { ok: true, jobId, pdfPath: result.pdfPath };
+        return { ok: true, jobId, pdfPath: result.pdfPath, storagePath };
 
     } catch (err) {
         console.error(`[JobProcessor] ❌ Falhou: ${lead.name} — ${err.message}`);
