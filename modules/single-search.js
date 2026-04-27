@@ -151,6 +151,7 @@ async function _searchMaps(page, query, maxResults) {
 
 /**
  * Extrai dados de uma página de lugar do Google Maps
+ * Múltiplas tentativas para rating e reviews para evitar perda de dados.
  */
 async function _extractPlaceData(page, index, mapsUrl = null) {
     let name = null;
@@ -164,6 +165,8 @@ async function _extractPlaceData(page, index, mapsUrl = null) {
     } catch { }
 
     let rating = 0, reviews = 0;
+
+    // Tentativa 1: F7nice texto completo "4,5(2.380)"
     try {
         const ratingEl = await page.locator('div.F7nice').first().innerText();
         if (ratingEl) {
@@ -171,9 +174,60 @@ async function _extractPlaceData(page, index, mapsUrl = null) {
             if (match) {
                 rating = parseFloat(match[1].replace(',', '.'));
                 reviews = parseInt(match[2].replace(/[.,]/g, ''));
+            } else {
+                // Apenas rating sem reviews
+                const rMatch = ratingEl.match(/([\d.,]+)/);
+                if (rMatch) rating = parseFloat(rMatch[1].replace(',', '.'));
             }
         }
     } catch { }
+
+    // Tentativa 2: aria-label "4,5 estrelas" para rating
+    if (!rating) {
+        try {
+            const ariaLabel = await page.locator('span[role="img"][aria-label*="estrela"], span[role="img"][aria-label*="star"]').first().getAttribute('aria-label');
+            if (ariaLabel) {
+                const m = ariaLabel.match(/([\d.,]+)/);
+                if (m) rating = parseFloat(m[1].replace(',', '.'));
+            }
+        } catch { }
+    }
+
+    // Tentativa 3: extrair reviews do texto da página principal (evaluate)
+    if (reviews === 0) {
+        try {
+            const mainText = await page.evaluate(() => {
+                const el = document.querySelector('div[role="main"]');
+                return el ? el.innerText.substring(0, 3000) : '';
+            });
+            // Procurar "(2.380)" ou "2.380 avaliações"
+            const patterns = [
+                /\(([\d.,]{4,})\)/,
+                /([\d.,]+)\s*(?:avaliações|reviews|comentários)/i
+            ];
+            for (const p of patterns) {
+                const m = mainText.match(p);
+                if (m) {
+                    const parsed = parseInt(m[1].replace(/[.,]/g, ''));
+                    if (parsed >= 10) { reviews = parsed; break; }
+                }
+            }
+        } catch { }
+    }
+
+    // Tentativa 4: F7nice spans individuais
+    if (reviews === 0) {
+        try {
+            const spans = await page.locator('div.F7nice span').allInnerTexts();
+            for (const t of spans) {
+                const m = t.match(/\(([\d.,]+)\)/);
+                if (m) {
+                    const parsed = parseInt(m[1].replace(/[.,]/g, ''));
+                    if (parsed >= 10) { reviews = parsed; break; }
+                }
+            }
+        } catch { }
+    }
 
     let category = '';
     try { category = await page.locator('button[jsaction*="category"] span, span.DkEaL').first().innerText().catch(() => ''); } catch { }
@@ -184,9 +238,15 @@ async function _extractPlaceData(page, index, mapsUrl = null) {
         if (phoneRaw) phone = phoneRaw.replace('Copiou o número de telefone', '').trim();
     } catch { }
 
+    let website = null;
+    try {
+        const rawWebsite = await page.locator('a[data-item-id="authority"]').first().getAttribute('href');
+        if (rawWebsite) website = rawWebsite;
+    } catch { }
+
     const url = mapsUrl || page.url();
 
-    return { index, name, address, rating, reviews, category, phone, google_maps_url: url };
+    return { index, name, address, rating, reviews, category, phone, website, google_maps_url: url };
 }
 
 module.exports = { searchSingleCompany };

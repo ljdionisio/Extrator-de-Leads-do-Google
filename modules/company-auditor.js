@@ -444,4 +444,85 @@ function _parseRatingText(text) {
     return null;
 }
 
-module.exports = { auditCompany, isSocialUrl };
+/**
+ * Merge dados do auditor profundo com dados do lead/candidato original.
+ * Regra: NUNCA sobrescrever valor bom por null/0.
+ * Registra fonte de cada campo para transparência.
+ *
+ * @param {Object} originalLead - Lead/candidato com dados iniciais
+ * @param {Object} deepAudit - Resultado do auditCompany()
+ * @returns {Object} Lead merged com evidence metadata
+ */
+function mergeAuditWithLeadEvidence(originalLead, deepAudit) {
+    if (!deepAudit) return { ...originalLead, _auditSource: 'failed' };
+
+    const merged = { ...deepAudit };
+    const evidence = {};
+
+    // Rating: prefer auditor profundo (mais recente), fallback para original
+    if (deepAudit.rating && deepAudit.rating > 0) {
+        merged.rating = deepAudit.rating;
+        evidence.rating = { value: deepAudit.rating, source: 'maps_deep', confidence: deepAudit.confidence?.rating || 'high' };
+    } else if (originalLead.rating && originalLead.rating > 0) {
+        merged.rating = originalLead.rating;
+        evidence.rating = {
+            value: originalLead.rating, source: 'initial_search', confidence: 'medium',
+            note: 'Preservado do candidato inicial porque auditor profundo não observou rating.'
+        };
+    } else {
+        evidence.rating = { value: null, source: 'not_observed', confidence: 'not_observed' };
+    }
+
+    // Reviews: NUNCA trocar valor > 0 por null/0
+    if (deepAudit.reviews && deepAudit.reviews > 0) {
+        merged.reviews = deepAudit.reviews;
+        evidence.reviews = { value: deepAudit.reviews, source: 'maps_deep', confidence: deepAudit.confidence?.reviews || 'high' };
+    } else if (originalLead.reviews && originalLead.reviews > 0) {
+        merged.reviews = originalLead.reviews;
+        evidence.reviews = {
+            value: originalLead.reviews, source: 'initial_search', confidence: 'medium',
+            note: 'Preservado do candidato inicial porque auditor profundo não observou contagem em headless.'
+        };
+    } else {
+        merged.reviews = null;
+        evidence.reviews = {
+            value: null, source: 'not_observed', confidence: 'not_observed',
+            note: 'Não foi possível confirmar contagem de avaliações com segurança.'
+        };
+    }
+
+    // Website: prefer auditor (pode ter visitado)
+    if (!merged.website && originalLead.website) {
+        merged.website = originalLead.website;
+        evidence.website = { source: 'initial_search' };
+    }
+
+    // Instagram/Facebook/WhatsApp: preservar originais se auditor não encontrou
+    if (!merged.instagram && originalLead.instagram) {
+        merged.instagram = originalLead.instagram;
+        merged.instagram_source = originalLead.instagram_source || 'initial_search';
+    }
+    if (!merged.facebook && originalLead.facebook) {
+        merged.facebook = originalLead.facebook;
+    }
+    if (!merged.whatsapp && (originalLead.whatsapp || originalLead.whatsapp_url)) {
+        merged.whatsapp = originalLead.whatsapp || originalLead.whatsapp_url;
+    }
+
+    // Phone: preservar se auditor perdeu
+    if (!merged.phone && originalLead.phone) {
+        merged.phone = originalLead.phone;
+    }
+
+    // Address: preservar se auditor perdeu
+    if (!merged.address && originalLead.address) {
+        merged.address = originalLead.address;
+    }
+
+    merged._evidence = evidence;
+    merged._auditSource = 'merged';
+
+    return merged;
+}
+
+module.exports = { auditCompany, isSocialUrl, mergeAuditWithLeadEvidence };
