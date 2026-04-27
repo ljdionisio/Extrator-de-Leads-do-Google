@@ -3,6 +3,7 @@
 // =============================================================
 window.DP_RUNTIME = window.DP_RUNTIME || 'local';
 window.DP_IS_CLOUD = window.DP_RUNTIME === 'cloudflare' || !window.location.hostname.includes('localhost');
+console.log(`[Lead King] build:m11e | runtime:${window.DP_RUNTIME} | cloud:${window.DP_IS_CLOUD}`);
 
 // --- Migração dp_access_code → dp_operator_access_code ---
 (function () {

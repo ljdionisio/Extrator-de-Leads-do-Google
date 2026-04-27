@@ -28,9 +28,29 @@ async function auditCompany(mapsPage, url) {
         if (phoneRaw) phone = phoneRaw.replace('Copiou o número de telefone', '').trim();
     } catch (e) { warnings.push('phone_failed'); }
 
+    // Domínios de redes sociais que NÃO devem ser tratados como website institucional
+    const SOCIAL_DOMAINS = [
+        'instagram.com', 'facebook.com', 'fb.com', 'wa.me', 'whatsapp.com',
+        'api.whatsapp.com', 'linktree.com', 'linktr.ee', 'twitter.com', 'x.com',
+        'tiktok.com', 'youtube.com', 'youtu.be', 'linkedin.com', 'threads.net'
+    ];
+
+    function isSocialUrl(url) {
+        if (!url) return false;
+        try {
+            const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+            return SOCIAL_DOMAINS.some(d => hostname === d || hostname.endsWith('.' + d));
+        } catch (e) { return false; }
+    }
+
     let website = null;
     try {
-        website = await mapsPage.locator('a[data-item-id="authority"]').first().getAttribute('href');
+        const rawWebsite = await mapsPage.locator('a[data-item-id="authority"]').first().getAttribute('href');
+        if (rawWebsite && !isSocialUrl(rawWebsite)) {
+            website = rawWebsite;
+        } else if (rawWebsite && isSocialUrl(rawWebsite)) {
+            warnings.push('website_is_social_link');
+        }
     } catch (e) { warnings.push('website_failed'); }
 
     let instagram = null;
