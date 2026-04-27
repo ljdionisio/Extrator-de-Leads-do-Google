@@ -30,89 +30,27 @@ async function searchSingleCompany(companyName, city, browser, maxResults = 5) {
         locale: 'pt-BR'
     });
     const page = await context.newPage();
-    const candidates = [];
+    let candidates = [];
 
     try {
-        const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}/`;
-        await page.goto(searchUrl, { timeout: 20000 });
+        candidates = await _searchMaps(page, query, maxResults);
 
-        // Aguarda feed de resultados
-        await page.waitForSelector('div[role="feed"]', { timeout: 10000 }).catch(() => { });
-        await delay(2000);
-
-        // Coleta links dos resultados
-        const placeLocators = await page.locator('a.hfpxzc').all();
-        const hrefs = [];
-        for (const p of placeLocators) {
-            const href = await p.getAttribute('href').catch(() => null);
-            if (href) hrefs.push(href);
-            if (hrefs.length >= maxResults) break;
+        // Se 0 resultados, tentar query simplificada (nome mais curto + cidade)
+        if (candidates.length === 0) {
+            const simplified = _simplifyQuery(companyName.trim(), city.trim());
+            if (simplified !== query) {
+                console.log(`   🔄 Retry com query simplificada: "${simplified}"`);
+                candidates = await _searchMaps(page, simplified, maxResults);
+            }
         }
 
-        console.log(`   📋 ${hrefs.length} candidato(s) encontrado(s)`);
-
-        // Extrai dados básicos de cada candidato (sem auditoria completa)
-        for (let i = 0; i < hrefs.length; i++) {
-            try {
-                await page.goto(hrefs[i], { timeout: 15000 });
-                await page.waitForSelector('h1.DUwDvf', { timeout: 8000 }).catch(() => { });
-
-                // Nome
-                let name = null;
-                try {
-                    name = await page.locator('h1.DUwDvf').first().innerText();
-                } catch (e) { /* skip */ }
-                if (!name) continue;
-
-                // Endereço
-                let address = '';
-                try {
-                    const addrRaw = await page.locator('button[data-item-id="address"]').first().innerText();
-                    if (addrRaw) address = addrRaw.replace('Copiou o endereço', '').trim();
-                } catch (e) { /* skip */ }
-
-                // Rating e reviews
-                let rating = 0;
-                let reviews = 0;
-                try {
-                    const ratingEl = await page.locator('div.F7nice').first().innerText();
-                    if (ratingEl) {
-                        const match = ratingEl.match(/([\d.,]+).*?\(([\d.,]+)\)/);
-                        if (match) {
-                            rating = parseFloat(match[1].replace(',', '.'));
-                            reviews = parseInt(match[2].replace(/[.,]/g, ''));
-                        }
-                    }
-                } catch (e) { /* skip */ }
-
-                // Categoria
-                let category = '';
-                try {
-                    category = await page.locator('button[jsaction*="category"] span, span.DkEaL').first().innerText().catch(() => '');
-                } catch (e) { /* skip */ }
-
-                // Telefone (para preview)
-                let phone = '';
-                try {
-                    const phoneRaw = await page.locator('button[data-item-id^="phone:tel"]').first().innerText();
-                    if (phoneRaw) phone = phoneRaw.replace('Copiou o número de telefone', '').trim();
-                } catch (e) { /* skip */ }
-
-                candidates.push({
-                    index: i,
-                    name,
-                    address,
-                    rating,
-                    reviews,
-                    category,
-                    phone,
-                    google_maps_url: hrefs[i]
-                });
-
-                console.log(`   ✅ [${i + 1}] ${name} — ${rating}⭐ (${reviews} reviews)`);
-
-            } catch (err) {
-                console.log(`   ❌ [${i + 1}] Falhou: ${err.message}`);
+        // Se ainda 0, tentar apenas as palavras-chave mais relevantes
+        if (candidates.length === 0) {
+            const keywords = companyName.trim().split(/\s+/).filter(w => w.length > 3).slice(0, 2).join(' ');
+            if (keywords && keywords !== companyName.trim()) {
+                const lastTry = `${keywords} ${city.trim()}`;
+                console.log(`   🔄 Retry com palavras-chave: "${lastTry}"`);
+                candidates = await _searchMaps(page, lastTry, maxResults);
             }
         }
 
@@ -124,6 +62,131 @@ async function searchSingleCompany(companyName, city, browser, maxResults = 5) {
 
     console.log(`   📊 Total: ${candidates.length} candidato(s) válido(s)\n`);
     return candidates;
+}
+
+/**
+ * Simplifica query removendo palavras genéricas como "Super", "mercado", "loja", etc.
+ */
+function _simplifyQuery(name, city) {
+    const stopwords = ['super', 'mercado', 'supermercado', 'loja', 'casa', 'ponto', 'comercial',
+        'empresa', 'restaurante', 'padaria', 'bar', 'posto', 'auto', 'centro',
+        'grande', 'mini', 'mega', 'hiper', 'novo', 'nova', 'velho', 'velha',
+        'do', 'da', 'de', 'dos', 'das', 'e', 'o', 'a', 'os', 'as', 'em', 'no', 'na'];
+    const words = name.toLowerCase().split(/\s+/);
+    const meaningful = words.filter(w => !stopwords.includes(w) && w.length > 2);
+    if (meaningful.length > 0) {
+        return `${meaningful.join(' ')} ${city}`;
+    }
+    return `${name} ${city}`;
+}
+
+/**
+ * Executa busca no Google Maps e retorna candidatos
+ */
+async function _searchMaps(page, query, maxResults) {
+    const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}/`;
+    await page.goto(searchUrl, { timeout: 20000 });
+
+    // Verificar se redirecionou para resultado único (match direto)
+    await delay(2500);
+    const isDirectPlace = await page.locator('h1.DUwDvf').first().isVisible().catch(() => false);
+    const hasFeed = await page.locator('div[role="feed"]').first().isVisible().catch(() => false);
+
+    const candidates = [];
+
+    if (isDirectPlace && !hasFeed) {
+        // Google Maps redirecionou direto para um lugar
+        console.log(`   📍 Resultado direto (match único)`);
+        const c = await _extractPlaceData(page, 0);
+        if (c) {
+            candidates.push(c);
+            console.log(`   ✅ [1] ${c.name} — ${c.rating}⭐ (${c.reviews} reviews)`);
+        }
+        return candidates;
+    }
+
+    // Modo lista — espera feed carregar
+    if (!hasFeed) {
+        await page.waitForSelector('div[role="feed"]', { timeout: 8000 }).catch(() => { });
+        await delay(1500);
+    }
+
+    // Scroll para carregar mais resultados
+    try {
+        const feed = page.locator('div[role="feed"]').first();
+        if (await feed.isVisible().catch(() => false)) {
+            await feed.evaluate(el => el.scrollTop = el.scrollHeight);
+            await delay(1000);
+        }
+    } catch { /* ignore */ }
+
+    // Coleta links dos resultados
+    const placeLocators = await page.locator('a.hfpxzc').all();
+    const hrefs = [];
+    for (const p of placeLocators) {
+        const href = await p.getAttribute('href').catch(() => null);
+        if (href) hrefs.push(href);
+        if (hrefs.length >= maxResults) break;
+    }
+
+    console.log(`   📋 ${hrefs.length} candidato(s) encontrado(s)`);
+
+    // Extrai dados de cada candidato
+    for (let i = 0; i < hrefs.length; i++) {
+        try {
+            await page.goto(hrefs[i], { timeout: 15000 });
+            await page.waitForSelector('h1.DUwDvf', { timeout: 8000 }).catch(() => { });
+            const c = await _extractPlaceData(page, i, hrefs[i]);
+            if (c) {
+                candidates.push(c);
+                console.log(`   ✅ [${i + 1}] ${c.name} — ${c.rating}⭐ (${c.reviews} reviews)`);
+            }
+        } catch (err) {
+            console.log(`   ❌ [${i + 1}] Falhou: ${err.message}`);
+        }
+    }
+
+    return candidates;
+}
+
+/**
+ * Extrai dados de uma página de lugar do Google Maps
+ */
+async function _extractPlaceData(page, index, mapsUrl = null) {
+    let name = null;
+    try { name = await page.locator('h1.DUwDvf').first().innerText(); } catch { }
+    if (!name) return null;
+
+    let address = '';
+    try {
+        const addrRaw = await page.locator('button[data-item-id="address"]').first().innerText();
+        if (addrRaw) address = addrRaw.replace('Copiou o endereço', '').trim();
+    } catch { }
+
+    let rating = 0, reviews = 0;
+    try {
+        const ratingEl = await page.locator('div.F7nice').first().innerText();
+        if (ratingEl) {
+            const match = ratingEl.match(/([\d.,]+).*?\(([\d.,]+)\)/);
+            if (match) {
+                rating = parseFloat(match[1].replace(',', '.'));
+                reviews = parseInt(match[2].replace(/[.,]/g, ''));
+            }
+        }
+    } catch { }
+
+    let category = '';
+    try { category = await page.locator('button[jsaction*="category"] span, span.DkEaL').first().innerText().catch(() => ''); } catch { }
+
+    let phone = '';
+    try {
+        const phoneRaw = await page.locator('button[data-item-id^="phone:tel"]').first().innerText();
+        if (phoneRaw) phone = phoneRaw.replace('Copiou o número de telefone', '').trim();
+    } catch { }
+
+    const url = mapsUrl || page.url();
+
+    return { index, name, address, rating, reviews, category, phone, google_maps_url: url };
 }
 
 module.exports = { searchSingleCompany };
