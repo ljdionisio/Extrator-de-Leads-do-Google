@@ -19,7 +19,8 @@
     "evidence": "node scripts/generate-evidence.js",
     "smoke": "node tests/smoke-test-comercial.js",
     "cf:prepare": "node scripts/prepare-cloudflare-pwa.js",
-    "cf:deploy": "node scripts/deploy-cloudflare-pages.js"
+    "cf:deploy": "node scripts/deploy-cloudflare-pages.js",
+    "security:check": "node scripts/check-export-safety.js"
   },
   "keywords": [
     "lead",
