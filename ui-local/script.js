@@ -131,23 +131,32 @@ window.dpCloudDiagnosisJobById = async function (jobId) {
     return window.dpApi('GET', `/api/jobs?id=${jobId}`);
 };
 
-// Cloud polling helper — consulta job até status final
+// Cloud polling helper — timeout curto, feedback inteligente
 window.dpPollJob = async function (fetchFn, jobId, statusDiv, opts = {}) {
-    const maxAttempts = opts.maxAttempts || 120;
+    const maxAttempts = opts.maxAttempts || 15;
     const interval = opts.interval || 3000;
+    let lastStatus = '';
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(r => setTimeout(r, interval));
         const res = await fetchFn(jobId);
         if (!res.ok) continue;
         const job = res.job;
         if (!job) continue;
+        lastStatus = job.status;
+        const elapsed = (i + 1) * Math.round(interval / 1000);
+        if (job.status === 'queued' && statusDiv) {
+            statusDiv.innerHTML = `⏳ Na fila... (${elapsed}s) <span style="font-size:11px;color:#94a3b8;">— Aguardando executor local</span>`;
+        }
         if (job.status === 'running' && statusDiv) {
-            statusDiv.innerHTML = `⏳ Processando... (${i * Math.round(interval / 1000)}s)`;
+            statusDiv.innerHTML = `🔄 Processando... (${elapsed}s)`;
         }
         if (job.status === 'succeeded') return { ok: true, job };
         if (job.status === 'failed') return { ok: false, error: job.error_message || 'Falhou', job };
     }
-    return { ok: false, error: 'Timeout — executor local pode estar offline.' };
+    if (lastStatus === 'queued') {
+        return { ok: false, error: 'O executor local não está rodando. Inicie com "node index.js" no PC e tente novamente.' };
+    }
+    return { ok: false, error: 'Timeout — o processamento está demorando. Verifique o executor local.' };
 };
 
 window.leads = [];
