@@ -1,31 +1,94 @@
 // =============================================================
-// CLOUD-AWARE API LAYER
+// CLOUD-AWARE API LAYER + AUTH MODAL
 // =============================================================
 window.DP_RUNTIME = window.DP_RUNTIME || 'local';
 window.DP_IS_CLOUD = window.DP_RUNTIME === 'cloudflare' || !window.location.hostname.includes('localhost');
 
-window.dpAccessCode = localStorage.getItem('dp_access_code') || '';
+// --- Migração dp_access_code → dp_operator_access_code ---
+(function () {
+    const old = localStorage.getItem('dp_access_code');
+    if (old && !localStorage.getItem('dp_operator_access_code')) {
+        localStorage.setItem('dp_operator_access_code', old);
+    }
+    localStorage.removeItem('dp_access_code');
+})();
 
-window.dpApi = async function (method, path, body) {
+// --- Access Code Helpers ---
+window.dpGetAccessCode = function () {
+    return localStorage.getItem('dp_operator_access_code') || '';
+};
+window.dpSetAccessCode = function (code) {
+    if (code) localStorage.setItem('dp_operator_access_code', code);
+};
+window.dpClearAccessCode = function () {
+    localStorage.removeItem('dp_operator_access_code');
+};
+
+// --- Modal: pedir código ao operador (retorna Promise<string|null>) ---
+window.dpRequestAccessCode = function (reason) {
+    return new Promise(function (resolve) {
+        const modal = document.getElementById('accessCodeModal');
+        const input = document.getElementById('accessCodeInput');
+        const errorEl = document.getElementById('accessCodeError');
+        const reasonEl = document.getElementById('accessCodeReason');
+        if (!modal) { resolve(null); return; }
+
+        const messages = {
+            missing: 'Informe o código de acesso para usar o PWA online.',
+            invalid: '⚠️ Código ausente ou inválido. Informe o código correto.',
+        };
+        reasonEl.innerText = messages[reason] || messages.missing;
+        errorEl.style.display = 'none';
+        input.value = window.dpGetAccessCode();
+        modal.style.display = 'flex';
+        input.focus();
+
+        // Enter key support
+        function onKeyDown(e) { if (e.key === 'Enter') { input.removeEventListener('keydown', onKeyDown); window._dpResolveAccessCode(input.value.trim()); } }
+        input.addEventListener('keydown', onKeyDown);
+
+        window._dpResolveAccessCode = function (val) {
+            input.removeEventListener('keydown', onKeyDown);
+            window._dpResolveAccessCode = null;
+            modal.style.display = 'none';
+            resolve(val);
+        };
+    });
+};
+
+// --- dpApi com retry robusto pós-401 ---
+window.dpApi = async function (method, path, body, _isRetry) {
     const baseUrl = window.DP_IS_CLOUD ? '' : 'http://localhost:3939';
+    const code = window.dpGetAccessCode();
+
+    // Pré-check: cloud sem código → pedir antes
+    if (window.DP_IS_CLOUD && !code && !_isRetry) {
+        const newCode = await window.dpRequestAccessCode('missing');
+        if (!newCode) return { ok: false, error: 'Código de acesso ausente.' };
+        window.dpSetAccessCode(newCode);
+        return window.dpApi(method, path, body, true);
+    }
+
     const opts = {
         method,
         headers: { 'Content-Type': 'application/json' },
     };
-    if (window.dpAccessCode) {
-        opts.headers['x-operator-access-code'] = window.dpAccessCode;
-    }
+    const activeCode = window.dpGetAccessCode();
+    if (activeCode) opts.headers['x-operator-access-code'] = activeCode;
     if (body && method !== 'GET') opts.body = JSON.stringify(body);
+
     try {
         const res = await fetch(baseUrl + path, opts);
+        if (res.status === 401 && !_isRetry) {
+            window.dpClearAccessCode();
+            const newCode = await window.dpRequestAccessCode('invalid');
+            if (!newCode) return { ok: false, error: 'Código de acesso ausente ou inválido.' };
+            window.dpSetAccessCode(newCode);
+            return window.dpApi(method, path, body, true);
+        }
         if (res.status === 401) {
-            const code = prompt('🔐 Código de acesso do operador:');
-            if (code) {
-                localStorage.setItem('dp_access_code', code);
-                window.dpAccessCode = code;
-                return window.dpApi(method, path, body);
-            }
-            return { ok: false, error: 'Não autorizado' };
+            window.dpClearAccessCode();
+            return { ok: false, error: 'Código de acesso inválido. Tente novamente.' };
         }
         return await res.json();
     } catch (err) {
@@ -782,6 +845,11 @@ window.singleSearch = async function () {
         }
 
         // Local path — fluxo original
+        if (typeof window.searchSingle !== 'function') {
+            statusDiv.innerHTML = '<span style="color:#ef4444;">❌ Motor local indisponível. Limpe o cache do navegador e tente novamente.</span>';
+            window.updateStatusMsg('❌ Motor local não disponível neste dispositivo.');
+            return;
+        }
         const candidates = await window.searchSingle(name, city);
         window.singleSearchCandidates = candidates;
 
