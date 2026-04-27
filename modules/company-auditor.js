@@ -56,6 +56,22 @@ async function auditCompany(mapsPage, url, options = {}) {
     await mapsPage.waitForSelector('h1.DUwDvf', { timeout: 15000 }).catch(() => { warnings.push('name_timeout'); });
     await delay(3000); // Espera inicial para dados lazy
 
+    // Se a URL é /maps/search/ (perfil simplificado sem abas),
+    // precisamos navegar para /maps/place/ para ter acesso completo
+    const currentUrl = mapsPage.url();
+    if (currentUrl.includes('/maps/search/') || !currentUrl.includes('/maps/place/')) {
+        try {
+            // Clicar no nome do estabelecimento para ir ao perfil completo
+            const nameLink = mapsPage.locator('a.hfpxzc').first();
+            if (await nameLink.isVisible().catch(() => false)) {
+                await nameLink.click();
+                await mapsPage.waitForSelector('h1.DUwDvf', { timeout: 10000 }).catch(() => { });
+                await delay(3000);
+                warnings.push('redirected_to_place');
+            }
+        } catch { warnings.push('place_redirect_failed'); }
+    }
+
     // === 2. DADOS BÁSICOS ===
     let name = null;
     try { name = await mapsPage.locator('h1.DUwDvf').first().innerText(); } catch { warnings.push('name_failed'); }
@@ -121,6 +137,58 @@ async function auditCompany(mapsPage, url, options = {}) {
             if (revBtn) {
                 const m = revBtn.match(/([\d.,]+)/);
                 if (m) reviews = parseInt(m[1].replace(/[.,]/g, ''));
+            }
+        } catch { }
+    }
+
+    // Tentativa 4: span dentro de F7nice com parênteses "(2.380)" — exclui valores de rating (< 6)
+    if (reviews === null) {
+        try {
+            const f7spans = await mapsPage.locator('div.F7nice span').allInnerTexts();
+            for (const t of f7spans) {
+                // Procurar explicitamente texto com parênteses como "(2.380)"
+                const mParen = t.match(/\(([\d.,]+)\)/);
+                if (mParen) {
+                    const parsed = parseInt(mParen[1].replace(/[.,]/g, ''));
+                    if (parsed >= 100) { reviews = parsed; break; }
+                }
+                // Procurar número grande standalone (>= 100) — provavelmente reviews
+                const mNum = t.match(/^([\d.,]+)$/);
+                if (mNum) {
+                    const parsed = parseInt(mNum[1].replace(/[.,]/g, ''));
+                    if (parsed >= 100) { reviews = parsed; break; }
+                }
+            }
+        } catch { }
+    }
+
+    // Tentativa 5: scan do texto do header inteiro
+    if (reviews === null) {
+        try {
+            const headerText = await mapsPage.locator('div.LBgpqf, div.fontBodyMedium').first().innerText().catch(() => '');
+            const m = headerText.match(/([\d.,]+)\s*(?:avaliação|avaliações|review|reviews|comentário)/i);
+            if (m) reviews = parseInt(m[1].replace(/[.,]/g, ''));
+        } catch { }
+    }
+
+    // Tentativa 6: qualquer texto na página com padrão "X avaliações" ou "(X)"
+    if (reviews === null) {
+        try {
+            const allText = await mapsPage.evaluate(() => {
+                const el = document.querySelector('div[role="main"]');
+                return el ? el.innerText.substring(0, 2000) : '';
+            });
+            // Procurar "(2.380)" ou "2.380 avaliações"
+            const patterns = [
+                /\(([\d.,]{4,})\)/,
+                /([\d.,]+)\s*(?:avaliações|reviews|comentários)/i
+            ];
+            for (const p of patterns) {
+                const m = allText.match(p);
+                if (m) {
+                    const parsed = parseInt(m[1].replace(/[.,]/g, ''));
+                    if (parsed > 10) { reviews = parsed; break; }
+                }
             }
         } catch { }
     }
