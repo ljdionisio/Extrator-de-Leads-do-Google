@@ -6,10 +6,11 @@
  * Não quebra o app se Supabase não estiver disponível.
  */
 
-const { isPersistenceReady } = require('./supabase-server.js');
+const { isPersistenceReady, sendExecutorHeartbeat } = require('./supabase-server.js');
 
 let _searchTimer = null;
 let _diagnosisTimer = null;
+let _heartbeatTimer = null;
 let _running = { search: false, diagnosis: false };
 let _stats = { searchCycles: 0, diagnosisCycles: 0, searchProcessed: 0, diagnosisProcessed: 0, errors: 0 };
 
@@ -80,7 +81,15 @@ function startExecutorAutopilot(options = {}) {
         _running.diagnosis = false;
     }, diagnosisInterval);
 
-    console.log(`[Autopilot] ✅ Ativado — search: ${searchInterval / 1000}s, diagnosis: ${diagnosisInterval / 1000}s`);
+    // Heartbeat
+    const heartbeatInterval = parseInt(process.env.EXECUTOR_HEARTBEAT_INTERVAL_MS) || 15000;
+    const heartbeatMeta = { version: '2.0', autopilot: true, searchIntervalMs: searchInterval, diagnosisIntervalMs: diagnosisInterval };
+    sendExecutorHeartbeat({ status: 'online', meta: heartbeatMeta }).catch(() => { });
+    _heartbeatTimer = setInterval(() => {
+        sendExecutorHeartbeat({ status: 'online', meta: { ...heartbeatMeta, stats: { ..._stats } } }).catch(() => { });
+    }, heartbeatInterval);
+
+    console.log(`[Autopilot] ✅ Ativado — search: ${searchInterval / 1000}s, diagnosis: ${diagnosisInterval / 1000}s, heartbeat: ${heartbeatInterval / 1000}s`);
     return { started: true, searchInterval, diagnosisInterval, maxSearch, maxDiagnosis };
 }
 
@@ -88,6 +97,8 @@ function startExecutorAutopilot(options = {}) {
  * Para o autopilot.
  */
 function stopExecutorAutopilot() {
+    if (_heartbeatTimer) { clearInterval(_heartbeatTimer); _heartbeatTimer = null; }
+    sendExecutorHeartbeat({ status: 'stopping' }).catch(() => { });
     if (_searchTimer) { clearInterval(_searchTimer); _searchTimer = null; }
     if (_diagnosisTimer) { clearInterval(_diagnosisTimer); _diagnosisTimer = null; }
     _running = { search: false, diagnosis: false };

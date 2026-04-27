@@ -159,6 +159,53 @@ window.dpPollJob = async function (fetchFn, jobId, statusDiv, opts = {}) {
     return { ok: false, error: 'Timeout — o processamento está demorando. Verifique o executor local.' };
 };
 
+// =============================================================
+// EXECUTOR STATUS (M11C) — Badge visual no cloud
+// =============================================================
+window.dpCheckExecutorStatus = async function () {
+    if (!window.DP_IS_CLOUD) return;
+    const badge = document.getElementById('executorStatusBadge');
+    if (!badge) return;
+
+    try {
+        const res = await fetch('/api/executor-status');
+        const data = await res.json();
+        if (!data.ok || !data.executor) {
+            badge.style.display = 'block';
+            badge.style.background = '#7f1d1d';
+            badge.style.color = '#fca5a5';
+            badge.innerText = '⚠️ Status indisponível';
+            return;
+        }
+        const { status, label } = data.executor;
+        badge.style.display = 'block';
+        if (status === 'online') {
+            badge.style.background = '#064e3b';
+            badge.style.color = '#6ee7b7';
+            badge.innerText = `🟢 Executor: ${label}`;
+        } else if (status === 'delayed') {
+            badge.style.background = '#78350f';
+            badge.style.color = '#fcd34d';
+            badge.innerText = `🟡 Executor: ${label}`;
+        } else {
+            badge.style.background = '#7f1d1d';
+            badge.style.color = '#fca5a5';
+            badge.innerText = `🔴 Executor: ${label}`;
+        }
+    } catch {
+        badge.style.display = 'block';
+        badge.style.background = '#7f1d1d';
+        badge.style.color = '#fca5a5';
+        badge.innerText = '🔴 Executor: sem conexão';
+    }
+};
+
+// Auto-check no cloud a cada 30s
+if (window.DP_IS_CLOUD) {
+    window.dpCheckExecutorStatus();
+    setInterval(window.dpCheckExecutorStatus, 30000);
+}
+
 window.leads = [];
 
 // === PWA: Registro do Service Worker ===

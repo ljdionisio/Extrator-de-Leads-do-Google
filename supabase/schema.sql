@@ -272,3 +272,34 @@ CREATE POLICY "lead_search_jobs_delete_own" ON lead_search_jobs
 -- Front-end NUNCA acessa storage diretamente.
 
 -- FIM DO SCHEMA v1.1 (M7G)
+
+-- =============================================================
+-- 9. TABELA: executor_heartbeats (M11C)
+-- Heartbeat do executor local para monitoramento de status
+-- =============================================================
+CREATE TABLE IF NOT EXISTS executor_heartbeats (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+    executor_id text NOT NULL,
+    status text NOT NULL DEFAULT 'online'
+        CHECK (status IN ('online','stopping','offline','error')),
+    last_seen_at timestamptz DEFAULT now(),
+    meta jsonb DEFAULT '{}'::jsonb,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_heartbeats_executor_id ON executor_heartbeats(executor_id);
+CREATE INDEX IF NOT EXISTS idx_heartbeats_last_seen ON executor_heartbeats(last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_heartbeats_user_id ON executor_heartbeats(user_id);
+
+CREATE TRIGGER trg_heartbeats_updated_at
+    BEFORE UPDATE ON executor_heartbeats
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE executor_heartbeats ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY heartbeats_service_all ON executor_heartbeats
+    FOR ALL USING (true) WITH CHECK (true);
+
+-- FIM DO SCHEMA v1.2 (M11C)

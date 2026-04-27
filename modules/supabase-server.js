@@ -634,6 +634,45 @@ async function listLeadSearchJobs(opts = {}) {
     }
 }
 
+// =============================================================
+// HEARTBEAT DO EXECUTOR (M11C)
+// =============================================================
+
+/**
+ * Envia/atualiza heartbeat do executor local.
+ * Upsert por executor_id — atualiza last_seen_at.
+ * Nunca envia segredos.
+ * @param {{ executorId?: string, status?: string, meta?: object }} payload
+ */
+async function sendExecutorHeartbeat(payload = {}) {
+    if (!isPersistenceReady()) return { ok: false, error: 'supabase_not_configured' };
+    try {
+        const sb = getSupabaseAdminClient();
+        const executorId = payload.executorId || process.env.EXECUTOR_ID || 'local-main';
+        const status = payload.status || 'online';
+        const meta = payload.meta || {};
+        const userId = _resolvedUserId || process.env.SUPABASE_DEFAULT_USER_ID || null;
+
+        const { data, error } = await sb
+            .from('executor_heartbeats')
+            .upsert({
+                executor_id: executorId,
+                user_id: userId,
+                status,
+                last_seen_at: new Date().toISOString(),
+                meta,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'executor_id' })
+            .select('id')
+            .single();
+
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, id: data?.id };
+    } catch (err) {
+        return { ok: false, error: err.message };
+    }
+}
+
 module.exports = {
     isSupabaseConfigured,
     getSupabaseAdminClient,
@@ -650,4 +689,5 @@ module.exports = {
     createLeadSearchJob,
     updateLeadSearchJob,
     listLeadSearchJobs,
+    sendExecutorHeartbeat,
 };
