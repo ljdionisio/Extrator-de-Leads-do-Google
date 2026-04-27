@@ -142,7 +142,7 @@ console.log(`\n🚀 Deploy para Cloudflare Pages: ${projectName}`);
 let deployUrl = '';
 try {
     const deployOut = execSync(
-        `npx wrangler pages deploy cloudflare/public --project-name=${projectName}`,
+        `npx wrangler pages deploy --project-name=${projectName} --commit-dirty=true`,
         {
             cwd: ROOT,
             env: { ...process.env, CLOUDFLARE_API_TOKEN: apiToken, CLOUDFLARE_ACCOUNT_ID: accountId },

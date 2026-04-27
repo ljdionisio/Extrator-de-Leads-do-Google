@@ -1,14 +1,8 @@
 name = "extrator-leads-google"
 compatibility_date = "2024-01-01"
+pages_build_output_dir = "cloudflare/public"
 
-# Pages Functions são auto-detectadas em cloudflare/functions/
-# Não é necessário configurar rotas manualmente.
-# Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) devem ser
-# configurados via: npx wrangler pages secret put <NAME>
+# Pages Functions auto-detectadas em cloudflare/functions/
+# Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, etc.)
+# configurados via: npx wrangler pages secret bulk
 # NUNCA colocar secrets neste arquivo.
-
-[build]
-command = "node scripts/prepare-cloudflare-pwa.js"
-
-[site]
-bucket = "cloudflare/public"
