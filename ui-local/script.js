@@ -137,6 +137,7 @@ window.dpPollJob = async function (fetchFn, jobId, statusDiv, opts = {}) {
     const interval = opts.interval || 3000;
     let lastStatus = '';
     for (let i = 0; i < maxAttempts; i++) {
+        if (window._dpPollAbort) { window._dpPollAbort = false; return { ok: false, error: 'Busca cancelada pelo operador.' }; }
         await new Promise(r => setTimeout(r, interval));
         const res = await fetchFn(jobId);
         if (!res.ok) continue;
@@ -869,6 +870,10 @@ window.singleSearch = async function () {
     statusDiv.innerText = 'Pesquisando no Google Maps...';
     window.updateStatusMsg(`🔍 Pesquisa individual: "${name}" em "${city}"...`);
 
+    // Mostrar botão cancelar no cloud
+    const cancelBtn = document.getElementById('btn-single-cancel');
+    if (cancelBtn && window.DP_IS_CLOUD) cancelBtn.style.display = 'block';
+
     try {
         // C1: Cloud path — envia para fila Supabase
         if (window.DP_IS_CLOUD) {
@@ -926,6 +931,8 @@ window.singleSearch = async function () {
     } finally {
         btn.disabled = false;
         btn.innerText = '🔍 BUSCAR EMPRESA';
+        const cancelBtn2 = document.getElementById('btn-single-cancel');
+        if (cancelBtn2) cancelBtn2.style.display = 'none';
     }
 };
 
