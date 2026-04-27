@@ -60,6 +60,33 @@ window.dpCloudPdfUrl = async function (storagePath) {
     return window.dpApi('GET', `/api/jobs-pdf-url?path=${encodeURIComponent(storagePath)}`);
 };
 
+// Cloud: consultar job por id
+window.dpCloudSearchJobById = async function (jobId) {
+    return window.dpApi('GET', `/api/search-jobs?id=${jobId}`);
+};
+window.dpCloudDiagnosisJobById = async function (jobId) {
+    return window.dpApi('GET', `/api/jobs?id=${jobId}`);
+};
+
+// Cloud polling helper — consulta job até status final
+window.dpPollJob = async function (fetchFn, jobId, statusDiv, opts = {}) {
+    const maxAttempts = opts.maxAttempts || 120;
+    const interval = opts.interval || 3000;
+    for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(r => setTimeout(r, interval));
+        const res = await fetchFn(jobId);
+        if (!res.ok) continue;
+        const job = res.job;
+        if (!job) continue;
+        if (job.status === 'running' && statusDiv) {
+            statusDiv.innerHTML = `⏳ Processando... (${i * Math.round(interval / 1000)}s)`;
+        }
+        if (job.status === 'succeeded') return { ok: true, job };
+        if (job.status === 'failed') return { ok: false, error: job.error_message || 'Falhou', job };
+    }
+    return { ok: false, error: 'Timeout — executor local pode estar offline.' };
+};
+
 window.leads = [];
 
 // === PWA: Registro do Service Worker ===
@@ -452,17 +479,56 @@ window.runPremiumDiagnostic = async function (idx) {
     const lead = window.leads[idx];
     if (!lead) return alert('Lead não encontrado.');
 
-    const niche = document.getElementById('i-niche') ? document.getElementById('i-niche').value : 'Nicho';
-    const city = document.getElementById('i-city') ? document.getElementById('i-city').value : 'Cidade';
+    const niche = document.getElementById('i-niche') ? document.getElementById('i-niche').value : (lead.niche || 'Nicho');
+    const city = document.getElementById('i-city') ? document.getElementById('i-city').value : (lead.city || 'Cidade');
 
     const btn = document.getElementById(`btn-premium-${idx}`);
     const statusDiv = document.getElementById(`premium-status-${idx}`);
 
     if (btn) { btn.disabled = true; btn.innerText = '⏳ Gerando Diagnóstico Premium...'; btn.style.opacity = '0.6'; }
-    if (statusDiv) { statusDiv.style.display = 'block'; statusDiv.innerHTML = '⏳ Visitando canais públicos e capturando evidências... Isso pode levar até 1 minuto.'; }
+    if (statusDiv) { statusDiv.style.display = 'block'; statusDiv.innerHTML = '⏳ Enviando para análise...'; }
     document.getElementById('sys-status').innerText = `> 🔬 Diagnóstico Premium em andamento: ${lead.name}...`;
 
     try {
+        // C3: Cloud path — envia para fila Supabase
+        if (window.DP_IS_CLOUD) {
+            const snapshot = { name: lead.name, city: lead.city || city, phone: lead.phone, website: lead.website, google_maps_url: lead.google_maps_url, instagram: lead.instagram, facebook: lead.facebook, whatsapp_url: lead.whatsapp_url, rating: lead.rating, reviews: lead.reviews };
+            statusDiv.innerHTML = '⏳ Diagnóstico enviado para fila online...';
+            const createRes = await window.dpCloudDiagnosis(snapshot);
+            if (!createRes.ok) {
+                statusDiv.innerHTML = `<span style="color:#ef4444;">❌ ${window.escapeHtml(createRes.error)}</span>`;
+                return;
+            }
+            statusDiv.innerHTML = '⏳ Na fila. Aguardando executor local processar...';
+            const pollRes = await window.dpPollJob(window.dpCloudDiagnosisJobById, createRes.jobId, statusDiv, { interval: 5000 });
+            if (!pollRes.ok) {
+                statusDiv.innerHTML = `<span style="color:#ef4444;">❌ ${window.escapeHtml(pollRes.error)}</span>`;
+                return;
+            }
+            const job = pollRes.job;
+            const storagePath = job.pdf_storage_path || (job.result && job.result.storagePath) || '';
+            let pdfButtons = '';
+            if (storagePath) {
+                pdfButtons = `
+                    <div style="margin-top:15px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <button onclick="(async()=>{const r=await window.dpCloudPdfUrl('${storagePath.replace(/'/g, "\\'")}');if(r.ok&&r.signedUrl)window.open(r.signedUrl,'_blank');else alert('Erro ao obter URL do PDF');})()"
+                            style="flex:1; min-width:140px; background:linear-gradient(135deg,#8b5cf6,#6d28d9); color:white; border:none; padding:14px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; min-height:48px;">
+                            📄 Abrir PDF
+                        </button>
+                    </div>`;
+            }
+            statusDiv.innerHTML = `
+                <div style="background:#0f2a0f; border:1px solid #10b981; border-radius:8px; padding:15px; margin-top:10px;">
+                    <p style="color:#10b981; font-weight:700;">✅ Diagnóstico Premium Concluído!</p>
+                    <p style="color:#cbd5e1; font-size:12px;">Score: ${job.diagnosis_score || 'N/A'}</p>
+                    ${storagePath ? '<p style="color:#94a3b8; font-size:11px;">PDF disponível no Storage seguro.</p>' : '<p style="color:#94a3b8; font-size:11px;">PDF será gerado pelo executor local.</p>'}
+                    ${pdfButtons}
+                </div>`;
+            document.getElementById('sys-status').innerText = `> ✅ Diagnóstico cloud concluído: ${lead.name}`;
+            return;
+        }
+
+        // Local path — fluxo original
         const result = await window.generatePremiumReport(lead, niche, city);
 
         if (result && result.pdfPath) {
@@ -685,6 +751,37 @@ window.singleSearch = async function () {
     window.updateStatusMsg(`🔍 Pesquisa individual: "${name}" em "${city}"...`);
 
     try {
+        // C1: Cloud path — envia para fila Supabase
+        if (window.DP_IS_CLOUD) {
+            statusDiv.innerText = 'Enviando busca para fila online...';
+            const createRes = await window.dpCloudSearch(name, city);
+            if (!createRes.ok) {
+                statusDiv.innerHTML = `<span style="color:#ef4444;">❌ Erro: ${window.escapeHtml(createRes.error)}</span>`;
+                return;
+            }
+            statusDiv.innerHTML = '⏳ Busca enviada. Aguardando executor local...';
+            window.updateStatusMsg('⏳ Busca na fila. Aguardando executor...');
+
+            const pollRes = await window.dpPollJob(window.dpCloudSearchJobById, createRes.jobId, statusDiv);
+            if (!pollRes.ok) {
+                statusDiv.innerHTML = `<span style="color:#ef4444;">❌ ${window.escapeHtml(pollRes.error)}</span>`;
+                window.updateStatusMsg('❌ Busca falhou.');
+                return;
+            }
+
+            const candidates = (pollRes.job.result && pollRes.job.result.candidates) || [];
+            window.singleSearchCandidates = candidates;
+            if (candidates.length === 0) {
+                statusDiv.innerHTML = '<span style="color:#ef4444;">❌ Nenhum candidato encontrado.</span>';
+                return;
+            }
+            statusDiv.innerHTML = `<span style="color:#10b981;">✅ ${candidates.length} candidato(s). Selecione abaixo.</span>`;
+            window.updateStatusMsg(`✅ ${candidates.length} candidato(s) encontrado(s).`);
+            window.renderCandidates(candidates);
+            return;
+        }
+
+        // Local path — fluxo original
         const candidates = await window.searchSingle(name, city);
         window.singleSearchCandidates = candidates;
 
@@ -756,63 +853,83 @@ window.selectCandidate = async function (idx) {
     actionDiv.innerHTML = `
         <div style="background:#0f2a0f; border:1px solid #10b981; border-radius:8px; padding:15px;">
             <p style="color:#10b981; font-weight:700; margin-bottom:8px;">✅ Selecionado: ${window.escapeHtml(candidate.name)}</p>
-            <p style="color:#94a3b8; font-size:12px; margin-bottom:10px;">Auditando empresa completa e adicionando ao pipeline...</p>
-            <div id="candidate-progress" style="color:#94a3b8; font-size:11px;">⏳ Realizando auditoria forense...</div>
+            <p style="color:#94a3b8; font-size:12px; margin-bottom:10px;">${window.DP_IS_CLOUD ? 'Adicionando ao pipeline...' : 'Auditando empresa completa e adicionando ao pipeline...'}</p>
+            <div id="candidate-progress" style="color:#94a3b8; font-size:11px;">⏳ ${window.DP_IS_CLOUD ? 'Preparando...' : 'Realizando auditoria forense...'}</div>
         </div>
     `;
 
-    window.updateStatusMsg(`🔍 Auditoria individual: ${candidate.name}...`);
+    window.updateStatusMsg(`🔍 ${window.DP_IS_CLOUD ? 'Selecionando' : 'Auditoria individual'}: ${candidate.name}...`);
 
     try {
-        // === DEDUP M2: checagem por google_maps_url > name+city > fallback ===
+        // === DEDUP M2 ===
         const mapsUrl = candidate.google_maps_url;
-        const existingByUrl = window.leads.find(l => l.google_maps_url && l.google_maps_url.split('?')[0] === mapsUrl.split('?')[0]);
-        if (existingByUrl) {
-            const existingIdx = window.leads.indexOf(existingByUrl);
-            document.getElementById('candidate-progress').innerHTML = `
-                <span style="color:#f59e0b;">⚠️ ${window.escapeHtml(existingByUrl.name)} já está no pipeline.</span>
-                <div style="margin-top:10px;">
-                    <span style="font-size:11px; color:#94a3b8;">Abrindo detalhes do lead existente...</span>
-                </div>
-            `;
-            // Auto-open: fecha modal candidatos, abre detalhes do existente
-            setTimeout(() => {
-                document.getElementById('candidateModal').style.display = 'none';
-                window.showDetails(existingIdx);
-            }, 800);
-            window.updateStatusMsg(`ℹ️ Lead já existente no pipeline: ${existingByUrl.name}`);
+        if (mapsUrl) {
+            const existingByUrl = window.leads.find(l => l.google_maps_url && l.google_maps_url.split('?')[0] === mapsUrl.split('?')[0]);
+            if (existingByUrl) {
+                const existingIdx = window.leads.indexOf(existingByUrl);
+                document.getElementById('candidate-progress').innerHTML = `<span style="color:#f59e0b;">⚠️ ${window.escapeHtml(existingByUrl.name)} já está no pipeline.</span>`;
+                setTimeout(() => { document.getElementById('candidateModal').style.display = 'none'; window.showDetails(existingIdx); }, 800);
+                return;
+            }
+        }
+
+        const niche = document.getElementById('i-single-name').value.trim();
+        const city = document.getElementById('i-single-city').value.trim();
+
+        // C2: Cloud path — sem auditSingleCandidate, usa dados do candidato direto
+        if (window.DP_IS_CLOUD) {
+            const leadId = 'cloud_' + Date.now();
+            const fullLead = {
+                name: candidate.name || '',
+                address: candidate.address || '',
+                source_search_url: `Pesquisa cloud: ${niche} em ${city}`,
+                google_maps_url: candidate.google_maps_url || '',
+                website: candidate.website || '',
+                instagram: candidate.instagram_url || '',
+                facebook: candidate.facebook_url || '',
+                whatsapp_url: candidate.whatsapp_url || '',
+                phone: candidate.phone || '',
+                categoria_maps: candidate.category || '',
+                rating: candidate.rating || 0,
+                reviews: candidate.reviews || 0,
+                score: 0,
+                priority: 'individual',
+                reasons: ['Pesquisa cloud — lead selecionado manualmente'],
+                niche: niche,
+                city: city,
+                lead_id_estavel: leadId,
+                data_captacao: new Date().toISOString(),
+                prioridade_comercial: 'individual',
+                prioridade_motivos: ['Lead selecionado via cloud'],
+                status_pipeline: 'Novo',
+                origem_snapshot: 'Pesquisa Cloud V1',
+                other_public_links: [],
+                negative_reviews: [],
+            };
+            window.addLead(fullLead);
+            const realIdx = window.leads.findIndex(l => l.lead_id_estavel === leadId);
+            document.getElementById('candidate-progress').innerHTML = `<span style="color:#10b981;">✅ ${window.escapeHtml(fullLead.name)} adicionado ao pipeline!</span>`;
+            setTimeout(() => { document.getElementById('candidateModal').style.display = 'none'; window.showDetails(realIdx >= 0 ? realIdx : window.leads.length - 1); }, 800);
+            window.updateStatusMsg(`✅ Lead cloud: ${fullLead.name}`);
             return;
         }
 
-        // Auditoria completa do candidato selecionado
+        // Local path — auditoria completa original
         const auditResult = await window.auditSingleCandidate(candidate.google_maps_url);
         if (!auditResult || !auditResult.name) {
             document.getElementById('candidate-progress').innerHTML = '<span style="color:#ef4444;">❌ Falha na auditoria. Tente outro candidato.</span>';
             return;
         }
 
-        // Dedup secundária por name + city
-        const niche = document.getElementById('i-single-name').value.trim();
-        const city = document.getElementById('i-single-city').value.trim();
-        const existingByName = window.leads.find(l =>
-            l.name === auditResult.name && l.city === city
-        );
+        const existingByName = window.leads.find(l => l.name === auditResult.name && l.city === city);
         if (existingByName) {
             const existingIdx = window.leads.indexOf(existingByName);
-            document.getElementById('candidate-progress').innerHTML = `
-                <span style="color:#f59e0b;">⚠️ ${window.escapeHtml(existingByName.name)} já está no pipeline (por nome+cidade).</span>
-            `;
-            setTimeout(() => {
-                document.getElementById('candidateModal').style.display = 'none';
-                window.showDetails(existingIdx);
-            }, 800);
-            window.updateStatusMsg(`ℹ️ Lead já existente: ${existingByName.name}`);
+            document.getElementById('candidate-progress').innerHTML = `<span style="color:#f59e0b;">⚠️ ${window.escapeHtml(existingByName.name)} já está no pipeline.</span>`;
+            setTimeout(() => { document.getElementById('candidateModal').style.display = 'none'; window.showDetails(existingIdx); }, 800);
             return;
         }
 
-        // ID estável com timestamp controlado
         const leadId = 'single_' + Date.now();
-
         const fullLead = {
             name: auditResult.name,
             address: auditResult.address ? auditResult.address.split('-')[0].trim() : '',
@@ -865,12 +982,8 @@ window.selectCandidate = async function (idx) {
             evidence_summary: ''
         };
 
-        // Adiciona ao pipeline visual
         window.addLead(fullLead);
-
         if (window.logEvent) window.logEvent('SYS', `Lead individual adicionado: ${fullLead.name}`);
-
-        // === M2: lookup de índice correto por lead_id_estavel (pós-sort) ===
         const realIdx = window.leads.findIndex(l => l.lead_id_estavel === leadId);
 
         document.getElementById('candidate-progress').innerHTML = `
@@ -885,7 +998,6 @@ window.selectCandidate = async function (idx) {
             <p style="font-size:12px; color:#8b5cf6; margin-top:10px;">⏳ Abrindo detalhes e diagnóstico premium...</p>
         `;
 
-        // === M2: auto-close candidatos → auto-open detalhes com Premium ===
         setTimeout(() => {
             document.getElementById('candidateModal').style.display = 'none';
             window.showDetails(realIdx >= 0 ? realIdx : window.leads.length - 1);

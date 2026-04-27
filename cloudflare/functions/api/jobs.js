@@ -1,5 +1,5 @@
 /**
- * /api/jobs — criar e listar diagnosis jobs via Supabase
+ * /api/jobs — criar, listar e consultar diagnosis jobs via Supabase
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -63,6 +63,22 @@ export async function onRequestGet(context) {
     if (!userId) return Response.json({ ok: false, error: 'User ID não configurado' }, { status: 500 });
 
     const url = new URL(context.request.url);
+    const jobId = url.searchParams.get('id');
+
+    // C4: GET by id
+    if (jobId) {
+        const { data, error } = await supabase
+            .from('diagnosis_jobs')
+            .select('id, status, lead_snapshot, diagnosis_score, result, created_at, started_at, completed_at, error_message, pdf_storage_path')
+            .eq('id', jobId)
+            .eq('user_id', userId)
+            .single();
+
+        if (error) return Response.json({ ok: false, error: error.message }, { status: error.code === 'PGRST116' ? 404 : 500 });
+        return Response.json({ ok: true, job: data }, { headers: corsHeaders });
+    }
+
+    // Listagem padrão
     const status = url.searchParams.get('status') || undefined;
     const limit = parseInt(url.searchParams.get('limit')) || 20;
 

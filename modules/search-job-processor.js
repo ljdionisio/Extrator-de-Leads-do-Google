@@ -52,9 +52,16 @@ async function processSearchJob(job, browser) {
                 searchId: saveResult.searchId || null,
                 candidates: (candidates || []).map(c => ({
                     name: c.name || c.titulo || '',
+                    address: c.address || c.endereco || '',
                     phone: c.phone || c.telefone || null,
                     rating: c.rating || null,
+                    reviews: c.reviews || c.total_reviews || 0,
                     website: c.website || null,
+                    google_maps_url: c.google_maps_url || c.maps_url || null,
+                    instagram_url: c.instagram || c.instagram_url || null,
+                    facebook_url: c.facebook || c.facebook_url || null,
+                    whatsapp_url: c.whatsapp_url || c.whatsapp || null,
+                    category: c.category || c.categoria_maps || '',
                 })),
             },
         });

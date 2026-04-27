@@ -1,5 +1,5 @@
 /**
- * /api/search-jobs — criar e listar search jobs via Supabase
+ * /api/search-jobs — criar, listar e consultar search jobs via Supabase
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -63,6 +63,22 @@ export async function onRequestGet(context) {
     if (!userId) return Response.json({ ok: false, error: 'User ID não configurado' }, { status: 500 });
 
     const url = new URL(context.request.url);
+    const jobId = url.searchParams.get('id');
+
+    // C4: GET by id — retorna um único job
+    if (jobId) {
+        const { data, error } = await supabase
+            .from('lead_search_jobs')
+            .select('id, query_name, city, status, candidate_count, result, created_at, started_at, completed_at, error_message')
+            .eq('id', jobId)
+            .eq('user_id', userId)
+            .single();
+
+        if (error) return Response.json({ ok: false, error: error.message }, { status: error.code === 'PGRST116' ? 404 : 500 });
+        return Response.json({ ok: true, job: data }, { headers: corsHeaders });
+    }
+
+    // Listagem padrão
     const status = url.searchParams.get('status') || undefined;
     const limit = parseInt(url.searchParams.get('limit')) || 20;
 
