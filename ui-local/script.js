@@ -484,7 +484,7 @@ window.showDetails = async function (idx) {
 
     let info = '<p><strong>📍 Maps:</strong> ' + (l.google_maps_url ? '<a href="' + safeUrl(l.google_maps_url) + '" target="_blank" style="color:#3b82f6;">Google Maps</a>' : 'N/A') + '</p>';
     info += '<p><strong>📞</strong> ' + esc(l.phone || 'Sem contato telefônico') + '</p>';
-    info += '<p><strong>🌐 Web:</strong> ' + (l.website ? '<a href="' + safeUrl(l.website) + '" target="_blank" style="color:#3b82f6;">Acessar Website</a>' : 'Sem Domínio') + '</p>';
+    info += '<p><strong>🌐 Web:</strong> ' + (l.website ? '<a href="' + safeUrl(l.website) + '" target="_blank" style="color:#3b82f6;">Acessar Website</a>' : '<span style="color:#f59e0b">Domínio não observado no perfil</span>') + '</p>';
     info += '<p><strong>📸 Insta:</strong> ' + (l.instagram ? '<a href="' + safeUrl(l.instagram) + '" target="_blank" style="color:#d946ef;">Instagram</a>' : 'N/A') + ' | <strong>📘 Face:</strong> ' + (l.facebook ? '<a href="' + safeUrl(l.facebook) + '" target="_blank" style="color:#3b82f6;">Facebook</a>' : 'N/A') + ' | <strong>💬 Whats:</strong> ' + (l.whatsapp_url ? '<a href="' + safeUrl(l.whatsapp_url) + '" target="_blank" style="color:#25d366;">WhatsApp</a>' : 'N/A') + '</p>';
 
     if (l.other_public_links && l.other_public_links.length > 0) {
@@ -506,8 +506,8 @@ window.showDetails = async function (idx) {
         l.reasons.forEach(r => { forenseHtml += '<li>' + r + '</li>'; });
         forenseHtml += '</ul><br>';
     }
-    forenseHtml += '<strong>Avaliação do Google:</strong> ' + (l.rating ? l.rating + ' Estrelas (' + l.reviews + ' reviews)' : 'NENHUMA AVALIAÇÃO') + '<br>';
-    forenseHtml += '<strong>Última Postagem GMB:</strong> ' + (l.last_post ? esc(l.last_post) : '<span style="color:#ef4444">Nunca postou na aba Atualizações.</span>') + '<br><br>';
+    forenseHtml += '<strong>Avaliação do Google:</strong> ' + (l.rating ? l.rating + ' Estrelas (' + (l.reviews || 0) + ' reviews)' : '<span style="color:#f59e0b">Não foi possível confirmar avaliação</span>') + '<br>';
+    forenseHtml += '<strong>Última Postagem GMB:</strong> ' + (l.last_post ? esc(l.last_post) : '<span style="color:#f59e0b">Nenhuma postagem observada na aba Atualizações.</span>') + '<br><br>';
 
     if (l.negative_reviews && l.negative_reviews.length > 0) {
         forenseHtml += '<strong style="color:#ef4444">💣 Reclamações Encontradas (Piores Avaliações):</strong><br>';
