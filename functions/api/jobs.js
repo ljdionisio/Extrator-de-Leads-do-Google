@@ -42,6 +42,25 @@ export async function onRequestPost(context) {
     const body = await context.request.json().catch(() => ({}));
     if (!body.leadSnapshot) return Response.json({ error: 'leadSnapshot é obrigatório' }, { status: 400 });
 
+    // Idempotência: verificar se já existe diagnosis job recente (15min) para mesmo lead
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+    // Check por candidate_id se fornecido (path mais confiável)
+    if (body.candidateId) {
+        const { data: existByCand } = await supabase
+            .from('diagnosis_jobs')
+            .select('id, status')
+            .eq('user_id', userId)
+            .eq('candidate_id', body.candidateId)
+            .in('status', ['queued', 'running', 'succeeded'])
+            .gte('created_at', cutoff)
+            .limit(1);
+
+        if (existByCand && existByCand.length > 0) {
+            return Response.json({ ok: true, reused: true, jobId: existByCand[0].id, status: existByCand[0].status }, { status: 200, headers: corsHeaders });
+        }
+    }
+
     const { data, error } = await supabase
         .from('diagnosis_jobs')
         .insert({ user_id: userId, candidate_id: body.candidateId || null, lead_snapshot: body.leadSnapshot, status: 'queued' })

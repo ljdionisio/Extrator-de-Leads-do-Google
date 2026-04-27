@@ -42,6 +42,26 @@ export async function onRequestPost(context) {
     const body = await context.request.json().catch(() => ({}));
     if (!body.queryName) return Response.json({ error: 'queryName é obrigatório' }, { status: 400 });
 
+    // Idempotência: verificar se já existe job recente (15min) com mesma query+city
+    const normalizedName = (body.queryName || '').trim().toLowerCase();
+    const normalizedCity = (body.city || '').trim().toLowerCase();
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+    const { data: existing } = await supabase
+        .from('lead_search_jobs')
+        .select('id, status, created_at')
+        .eq('user_id', userId)
+        .in('status', ['queued', 'running'])
+        .gte('created_at', cutoff)
+        .ilike('query_name', normalizedName)
+        .ilike('city', normalizedCity)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    if (existing && existing.length > 0) {
+        return Response.json({ ok: true, reused: true, jobId: existing[0].id, status: existing[0].status }, { status: 200, headers: corsHeaders });
+    }
+
     const { data, error } = await supabase
         .from('lead_search_jobs')
         .insert({ user_id: userId, query_name: body.queryName, city: body.city || '', status: 'queued' })
