@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const { chromium } = require('playwright');
 const { createLocalServer, sendJson } = require('./modules/local-api-server.js');
 // Supabase Removido em favor do Local Store
@@ -14,8 +15,8 @@ async function run() {
     console.log("   🤖 LEAD KING - MASTER CONTROL PANEL (Sinergia IA)   ");
     console.log("=======================================================\n");
 
-    // Lança o navegador maximizado
-    const browser = await chromium.launch({ headless: false, args: ['--start-maximized'] });
+    // Lança o navegador em modo headless (serviço backend)
+    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 
     // Janela Única: O Painel Visual do Robô (Dashboard Master Control)
     const dashContext = await browser.newContext({ viewport: { width: 1200, height: 800 }, acceptDownloads: true });
@@ -328,10 +329,8 @@ async function run() {
     startExecutorAutopilot({ browser });
 
     dashPage.on('close', async () => {
-        console.log("👋 Painel Mestre fechado. Encerrando Robô.");
-        stopExecutorAutopilot();
-        await localApi.close().catch(() => { });
-        process.exit(0);
+        console.log("ℹ️ Painel local fechado. Executor continua rodando em background.");
+        // NÃO encerra — autopilot e heartbeat continuam ativos
     });
 
     // Inicialização da interface concluída
