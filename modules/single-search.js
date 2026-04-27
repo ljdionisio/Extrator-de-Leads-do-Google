@@ -150,13 +150,33 @@ async function _searchMaps(page, query, maxResults) {
 }
 
 /**
- * Extrai dados de uma página de lugar do Google Maps
- * Múltiplas tentativas para rating e reviews para evitar perda de dados.
+ * Extrai dados de uma página de lugar do Google Maps.
+ * Navega para /maps/place/ se necessário (perfil completo com abas).
+ * Parser contextual de reviews com 6 tentativas.
  */
 async function _extractPlaceData(page, index, mapsUrl = null) {
+    // Se estamos em /maps/search/ (perfil simplificado), navegar para /maps/place/
+    const currentUrl = page.url();
+    if (currentUrl.includes('/maps/search/') && !currentUrl.includes('/maps/place/')) {
+        try {
+            const placeCard = page.locator('a.hfpxzc').first();
+            if (await placeCard.isVisible({ timeout: 3000 }).catch(() => false)) {
+                const placeHref = await placeCard.getAttribute('href');
+                if (placeHref && placeHref.includes('/maps/place/')) {
+                    await page.goto(placeHref, { timeout: 15000 });
+                    await page.waitForSelector('h1.DUwDvf', { timeout: 8000 }).catch(() => { });
+                    await delay(2000);
+                }
+            }
+        } catch { /* continua no modo simplificado */ }
+    }
+
     let name = null;
     try { name = await page.locator('h1.DUwDvf').first().innerText(); } catch { }
     if (!name) return null;
+
+    // Espera extra para dados lazy no perfil /maps/place/
+    await delay(2000);
 
     let address = '';
     try {
@@ -165,24 +185,28 @@ async function _extractPlaceData(page, index, mapsUrl = null) {
     } catch { }
 
     let rating = 0, reviews = 0;
+    let reviews_text = '';
+    let reviews_source = 'not_observed';
 
-    // Tentativa 1: F7nice texto completo "4,5(2.380)"
+    // === RATING ===
+
+    // R1: F7nice texto direto
     try {
         const ratingEl = await page.locator('div.F7nice').first().innerText();
         if (ratingEl) {
             const match = ratingEl.match(/([\d.,]+).*?\(([\d.,]+)\)/);
             if (match) {
                 rating = parseFloat(match[1].replace(',', '.'));
-                reviews = parseInt(match[2].replace(/[.,]/g, ''));
+                const rv = parseInt(match[2].replace(/[.,]/g, ''));
+                if (rv >= 10) { reviews = rv; reviews_text = ratingEl; reviews_source = 'f7nice_combined'; }
             } else {
-                // Apenas rating sem reviews
                 const rMatch = ratingEl.match(/([\d.,]+)/);
                 if (rMatch) rating = parseFloat(rMatch[1].replace(',', '.'));
             }
         }
     } catch { }
 
-    // Tentativa 2: aria-label "4,5 estrelas" para rating
+    // R2: aria-label com "estrelas"
     if (!rating) {
         try {
             const ariaLabel = await page.locator('span[role="img"][aria-label*="estrela"], span[role="img"][aria-label*="star"]').first().getAttribute('aria-label');
@@ -193,41 +217,94 @@ async function _extractPlaceData(page, index, mapsUrl = null) {
         } catch { }
     }
 
-    // Tentativa 3: extrair reviews do texto da página principal (evaluate)
+    // === REVIEWS (parser contextual) ===
+
+    // V1: button com aria-label "X avaliações" ou "X reviews"
     if (reviews === 0) {
         try {
-            const mainText = await page.evaluate(() => {
-                const el = document.querySelector('div[role="main"]');
-                return el ? el.innerText.substring(0, 3000) : '';
-            });
-            // Procurar "(2.380)" ou "2.380 avaliações"
-            const patterns = [
-                /\(([\d.,]{4,})\)/,
-                /([\d.,]+)\s*(?:avaliações|reviews|comentários)/i
-            ];
-            for (const p of patterns) {
-                const m = mainText.match(p);
+            const btns = await page.$$eval('button[aria-label]', els =>
+                els.map(e => e.getAttribute('aria-label')).filter(l => l && /avaliação|avaliações|review|reviews/i.test(l))
+            );
+            for (const label of btns) {
+                const m = label.match(/([\d.,]+)\s*(?:avaliação|avaliações|review|reviews)/i);
                 if (m) {
                     const parsed = parseInt(m[1].replace(/[.,]/g, ''));
-                    if (parsed >= 10) { reviews = parsed; break; }
+                    if (parsed >= 5) { reviews = parsed; reviews_text = label; reviews_source = 'button_aria_label'; break; }
                 }
             }
         } catch { }
     }
 
-    // Tentativa 4: F7nice spans individuais
+    // V2: Tab "Avaliações" aria-label (frequentemente contém contagem)
     if (reviews === 0) {
         try {
-            const spans = await page.locator('div.F7nice span').allInnerTexts();
-            for (const t of spans) {
-                const m = t.match(/\(([\d.,]+)\)/);
-                if (m) {
-                    const parsed = parseInt(m[1].replace(/[.,]/g, ''));
-                    if (parsed >= 10) { reviews = parsed; break; }
+            const tabEl = page.getByRole('tab', { name: /Avaliações|Reviews/i });
+            if (await tabEl.isVisible({ timeout: 2000 }).catch(() => false)) {
+                const tabLabel = await tabEl.getAttribute('aria-label').catch(() => '');
+                if (tabLabel) {
+                    const m = tabLabel.match(/([\d.,]+)/);
+                    if (m) {
+                        const parsed = parseInt(m[1].replace(/[.,]/g, ''));
+                        if (parsed >= 5) { reviews = parsed; reviews_text = tabLabel; reviews_source = 'tab_aria_label'; }
+                    }
                 }
             }
         } catch { }
     }
+
+    // V3: Texto avaliável no painel — "X avaliações" contextual
+    if (reviews === 0) {
+        try {
+            const mainText = await page.evaluate(() => {
+                const el = document.querySelector('div[role="main"]');
+                return el ? el.innerText.substring(0, 4000) : '';
+            });
+            const patterns = [
+                /([\d.,]+)\s*(?:avaliações|avaliação|reviews|review|comentários)/i,
+                /\(([\d.,]{4,})\)/
+            ];
+            for (const p of patterns) {
+                const m = mainText.match(p);
+                if (m) {
+                    const parsed = parseInt(m[1].replace(/[.,]/g, ''));
+                    // Exclui telefones (DDD): 10-11 dígitos consecutivos
+                    if (parsed >= 10 && m[1].replace(/[.,]/g, '').length <= 6) {
+                        reviews = parsed;
+                        reviews_text = m[0];
+                        reviews_source = 'panel_text';
+                        break;
+                    }
+                }
+            }
+        } catch { }
+    }
+
+    // V4: Click na aba Reviews para retirar contagem (só se não tem reviews e aba existe)
+    if (reviews === 0) {
+        try {
+            const tabReviews = page.getByRole('tab', { name: /Avaliações|Reviews/i });
+            if (await tabReviews.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await tabReviews.click();
+                await delay(3000);
+                const bodySmalls = await page.locator('div.fontBodySmall').allTextContents().catch(() => []);
+                for (const t of bodySmalls) {
+                    const m = t.match(/([\d.,]+)\s*(avaliações|reviews|comentários)/i);
+                    if (m) {
+                        const parsed = parseInt(m[1].replace(/[.,]/g, ''));
+                        if (parsed >= 5) { reviews = parsed; reviews_text = t.trim(); reviews_source = 'reviews_tab'; break; }
+                    }
+                }
+                const tabOverview = page.getByRole('tab', { name: /Visão geral|Overview/i });
+                if (await tabOverview.isVisible({ timeout: 1000 }).catch(() => false)) {
+                    await tabOverview.click();
+                    await delay(500);
+                }
+            }
+        } catch { }
+    }
+
+    // === CAPTURA BÁSICA (ANTES de qualquer navegação fora do Maps) ===
+    const originalUrl = mapsUrl || page.url();
 
     let category = '';
     try { category = await page.locator('button[jsaction*="category"] span, span.DkEaL').first().innerText().catch(() => ''); } catch { }
@@ -244,9 +321,46 @@ async function _extractPlaceData(page, index, mapsUrl = null) {
         if (rawWebsite) website = rawWebsite;
     } catch { }
 
-    const url = mapsUrl || page.url();
+    // V5: Google Search SERP fallback (ÚLTIMO RECURSO — pode navegar fora do Maps)
+    if (reviews === 0 && name) {
+        try {
+            const searchQuery = encodeURIComponent(`${name} avaliações google maps`);
+            await page.goto(`https://www.google.com/search?q=${searchQuery}&hl=pt-BR`, { timeout: 15000 });
+            await delay(2000);
+            // Verificar se não caiu em captcha
+            const serpUrl = page.url();
+            if (!serpUrl.includes('/sorry/') && !serpUrl.includes('captcha')) {
+                const serpText = await page.evaluate(() => {
+                    const main = document.querySelector('#main, #search, #rso, body');
+                    return main ? main.innerText.substring(0, 5000) : '';
+                });
+                const serpPatterns = [
+                    /([\d.,]+)\s*(?:avaliações|avaliação|reviews|review|comentários)/i,
+                    /(?:rating|avaliação|nota).*?([\d.,]+).*?\(([\d.,]+)\)/i
+                ];
+                for (const p of serpPatterns) {
+                    const m = serpText.match(p);
+                    if (m) {
+                        const targetGroup = m[2] || m[1];
+                        const parsed = parseInt(targetGroup.replace(/[.,]/g, ''));
+                        if (parsed >= 10 && targetGroup.replace(/[.,]/g, '').length <= 6) {
+                            reviews = parsed;
+                            reviews_text = m[0].substring(0, 100);
+                            reviews_source = 'google_search_serp';
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch { /* silencioso — SERP é fallback opcional */ }
+    }
 
-    return { index, name, address, rating, reviews, category, phone, website, google_maps_url: url };
+    return {
+        index, name, address, rating, reviews,
+        reviews_text, reviews_source,
+        category, phone, website,
+        google_maps_url: originalUrl
+    };
 }
 
 module.exports = { searchSingleCompany };
