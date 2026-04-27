@@ -21,6 +21,7 @@ const {
     screenshotToBase64,
     listScreenshots
 } = require('./screenshots-manager.js');
+const { auditCompany, mergeAuditWithLeadEvidence } = require('./company-auditor.js');
 
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
@@ -104,7 +105,7 @@ async function generatePremiumReport(lead, browser, niche, city) {
         // 1. GOOGLE MAPS
         // ============================================
         if (lead.google_maps_url) {
-            console.log('   📍 Visitando Google Maps...');
+            console.log('   📍 Visitando Google Maps (auditoria profunda)...');
             evidence.fontes.push({
                 tipo: 'google_maps',
                 url: lead.google_maps_url,
@@ -112,6 +113,30 @@ async function generatePremiumReport(lead, browser, niche, city) {
             });
 
             try {
+                // === AUDITORIA PROFUNDA: navegar, esperar, coletar dados ===
+                const deepAudit = await auditCompany(page, lead.google_maps_url, { tabWaitMs: 5000 });
+                const mergedLead = mergeAuditWithLeadEvidence(lead, deepAudit);
+
+                // Atualizar lead com dados do auditor profundo (preserva dados bons)
+                if (mergedLead.rating) lead.rating = mergedLead.rating;
+                if (mergedLead.reviews) lead.reviews = mergedLead.reviews;
+                if (mergedLead.instagram && !lead.instagram) lead.instagram = mergedLead.instagram;
+                if (mergedLead.facebook && !lead.facebook) lead.facebook = mergedLead.facebook;
+                if (mergedLead.whatsapp && !lead.whatsapp_url) lead.whatsapp_url = mergedLead.whatsapp;
+                if (mergedLead.website && !lead.website) lead.website = mergedLead.website;
+                if (mergedLead.phone && !lead.phone) lead.phone = mergedLead.phone;
+                if (mergedLead.address && !lead.address) lead.address = mergedLead.address;
+                if (mergedLead.last_post) lead.last_post = mergedLead.last_post;
+                if (mergedLead.negative_reviews) lead.negative_reviews = mergedLead.negative_reviews;
+                if (mergedLead._evidence) evidence._mergeEvidence = mergedLead._evidence;
+                if (deepAudit?.limitations) evidence.limitacoes.push(...deepAudit.limitations);
+
+                console.log(`   📊 Audit: rating=${lead.rating}, reviews=${lead.reviews}, ig=${!!lead.instagram}, fb=${!!lead.facebook}`);
+
+                // Voltar ao Maps para screenshots
+                await page.goto(lead.google_maps_url, { timeout: 30000 }).catch(() => { });
+                await delay(2000);
+
                 const gmbShots = await captureGMBScreenshots(page, leadId, lead.google_maps_url);
                 evidence.screenshots.push(...gmbShots);
 
@@ -127,24 +152,25 @@ async function generatePremiumReport(lead, browser, niche, city) {
                 });
 
                 if (lead.rating && lead.rating > 0) {
+                    const reviewsText = lead.reviews ? `com ${lead.reviews} avaliações` : '(contagem não confirmada)';
                     evidence.achados.push({
                         tipo: 'avaliacao_google',
-                        descricao: `Avaliação observada: ${lead.rating} estrelas com ${lead.reviews || 0} avaliações`,
-                        fonte: 'Google Maps',
+                        descricao: `Avaliação observada: ${lead.rating} estrelas ${reviewsText}`,
+                        fonte: mergedLead._evidence?.rating?.source === 'maps_deep' ? 'Google Maps (auditoria profunda)' : 'Google Maps (candidato inicial)',
                         url: lead.google_maps_url,
                         screenshot: gmbShots.find(s => s.tipo === 'google_maps_reviews')?.filename || null,
-                        confianca: 'alta',
+                        confianca: mergedLead._evidence?.rating?.confidence || 'media',
                         classificacao: 'fato_observado'
                     });
                 } else {
                     evidence.achados.push({
-                        tipo: 'sem_avaliacao',
-                        descricao: 'Nenhuma avaliação encontrada no Google Maps',
+                        tipo: 'avaliacao_nao_confirmada',
+                        descricao: 'Não foi possível confirmar avaliações no Google Maps com segurança',
                         fonte: 'Google Maps',
                         url: lead.google_maps_url,
                         screenshot: gmbShots[0]?.filename || null,
-                        confianca: 'media',
-                        classificacao: 'fato_observado'
+                        confianca: 'baixa',
+                        classificacao: 'limitacao_observacional'
                     });
                 }
 
