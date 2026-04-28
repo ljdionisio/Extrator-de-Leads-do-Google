@@ -134,7 +134,7 @@ window.dpCloudDiagnosisJobById = async function (jobId) {
 
 // Cloud polling helper — timeout curto, feedback inteligente
 window.dpPollJob = async function (fetchFn, jobId, statusDiv, opts = {}) {
-    const maxAttempts = opts.maxAttempts || 40;
+    const maxAttempts = opts.maxAttempts || 60;
     const interval = opts.interval || 3000;
     let lastStatus = '';
     for (let i = 0; i < maxAttempts; i++) {
@@ -887,7 +887,7 @@ window.singleSearch = async function () {
             statusDiv.innerHTML = '⏳ Busca enviada. Aguardando executor local...';
             window.updateStatusMsg('⏳ Busca na fila. Aguardando executor...');
 
-            const pollRes = await window.dpPollJob(window.dpCloudSearchJobById, createRes.jobId, statusDiv, { maxAttempts: 40, interval: 3000 });
+            const pollRes = await window.dpPollJob(window.dpCloudSearchJobById, createRes.jobId, statusDiv, { maxAttempts: 60, interval: 3000 });
             if (!pollRes.ok) {
                 statusDiv.innerHTML = `<span style="color:#ef4444;">❌ ${window.escapeHtml(pollRes.error)}</span>`;
                 window.updateStatusMsg('❌ Busca falhou.');

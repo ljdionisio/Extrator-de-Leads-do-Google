@@ -7,7 +7,7 @@
  * - Fallback: network-first para tudo que não é shell nem API
  */
 
-const CACHE_NAME = 'lead-king-shell-v6';
+const CACHE_NAME = 'lead-king-shell-v7';
 const SHELL_ASSETS = [
     '/',
     '/index.html',
