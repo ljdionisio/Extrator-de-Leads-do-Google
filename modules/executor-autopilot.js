@@ -38,7 +38,7 @@ function startExecutorAutopilot(options = {}) {
         return { started: false, reason: 'no_browser' };
     }
 
-    const searchInterval = parseInt(process.env.EXECUTOR_SEARCH_POLL_INTERVAL_MS) || options.searchIntervalMs || 15000;
+    const searchInterval = parseInt(process.env.EXECUTOR_SEARCH_POLL_INTERVAL_MS) || options.searchIntervalMs || 5000;
     const diagnosisInterval = parseInt(process.env.EXECUTOR_DIAGNOSIS_POLL_INTERVAL_MS) || options.diagnosisIntervalMs || 20000;
     const maxSearch = parseInt(process.env.EXECUTOR_MAX_SEARCH_JOBS) || options.maxSearchJobs || 1;
     const maxDiagnosis = parseInt(process.env.EXECUTOR_MAX_DIAGNOSIS_JOBS) || options.maxDiagnosisJobs || 1;
